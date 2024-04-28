@@ -7,6 +7,8 @@
 
 namespace Activitypub\Addon;
 
+use Activitypub\Activity\Base_Object;
+
 class Plugin {
 	/**
 	 * Plugin version.
@@ -83,10 +85,11 @@ class Plugin {
 	 *
 	 * @todo: Make the category configurable.
 	 *
-	 * @param array                             $array  Activity object's array representation.
-	 * @param string                            $class  Class name.
-	 * @param string                            $id     Activity object ID.
-	 * @param \Activitypub\Activity\Base_Object $object Activity object.
+	 * @param array       $array  Activity object's array representation.
+	 * @param string      $class  Class name.
+	 * @param string      $id     Activity object ID.
+	 * @param Base_Object $object Activity object.
+	 * @return array      The updated array.
 	 */
 	public function enable_unlisted( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound
 		if ( 'activity' === $class && isset( $array['object']['id'] ) ) {
