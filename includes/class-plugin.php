@@ -62,6 +62,14 @@ class Plugin {
 		if ( ! empty( $options['edit_notifications'] ) ) {
 			add_action( 'activitypub_handled_update', array( $this, 'send_edit_notification' ), 99, 4 );
 		}
+
+		if ( ! empty( $options['cache_avatars'] ) ) {
+			add_filter( 'preprocess_comment', array( $this, 'store_avatar' ), 99 );
+		}
+
+		if ( ! empty( $options['proxy_avatars'] ) ) {
+			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 99, 3 );
+		}
 	}
 
 	/**
@@ -162,5 +170,91 @@ class Plugin {
 			// wp_set_comment_status( $reaction, 'hold' );
 			wp_notify_moderator( $reaction->comment_ID );
 		}
+	}
+
+	/**
+	 * Stores ActivityPub avatars locally, and resizes them to 150 x 150 pixels.
+	 *
+	 * Requires the IndieBlocks plugin (for now).
+	 *
+	 * @param  array $commentdata Comment data.
+	 * @return array              Comment data.
+	 */
+	public function store_avatar( $commentdata ) {
+		if ( ! function_exists( '\\IndieBlocks\\store_image' ) ) {
+			return $commentdata;
+		}
+
+		if ( empty( $commentdata['comment_meta']['protocol'] ) || 'activitypub' !== $commentdata['comment_meta']['protocol'] ) {
+			return $commentdata;
+		}
+
+		if ( empty( $commentdata['comment_meta']['avatar_url'] ) || false === wp_http_validate_url( $commentdata['comment_meta']['avatar_url'] ) ) {
+			return $commentdata;
+		}
+
+		$url      = $commentdata['comment_meta']['avatar_url'];
+		$hash     = hash( 'sha256', esc_url_raw( $url ) ); // Create a (hopefully) unique, "reasonably short" filename.
+		$ext      = pathinfo( $url, PATHINFO_EXTENSION );
+		$filename = $hash . ( ! empty( $ext ) ? '.' . $ext : '' ); // Add a file extension if there was one.
+
+		$dir = 'activitypub-avatars'; // The folder we're saving our avatars to.
+
+		$upload_dir = wp_upload_dir();
+		if ( ! empty( $upload_dir['subdir'] ) ) {
+			// Add month and year, to be able to keep track of things. This will
+			// lead to duplicate files (for comments created in a different
+			// month), but so be it.
+			$dir .= '/' . trim( $upload_dir['subdir'], '/' );
+		}
+
+		// Make cache directory filterable. Like, if a site owner did not want
+		// the month and year in there, they could do so.
+		$dir = apply_filters( 'addon_for_activitypub_avatar_dir', $dir, $url );
+
+		$local_url = \IndieBlocks\store_image( $url, $filename, $dir ); // Attempt to store and resize the avatar.
+		if ( null !== $local_url ) {
+			$commentdata['comment_meta']['avatar_url'] = $local_url; // Replace the original URL by the local one.
+		}
+
+		return $commentdata;
+	}
+
+	/**
+	 * Runs previously stored avatar URLs through IndieBlocks "reverse image
+	 * proxy."
+	 *
+	 * Requires the IndieBlocks plugin (for now).
+	 *
+	 * @param  array $args        Arguments passed to `get_avatar_data()`.
+	 * @param  mixed $id_or_email User object, ID or email, Gravatar hash, post object, or comment object.
+	 * @return string             Filtered URL.
+	 */
+	public function proxy_avatar( $args, $id_or_email ) {
+		if ( ! function_exists( '\\IndieBlocks\\proxy_image' ) ) {
+			return $args;
+		}
+
+		if ( empty( $args['url'] ) ) {
+			return $args;
+		}
+
+		// Because ActivityPub uses `pre_get_avatar_data` and, in its callback,
+		// sets a `url`, the rest of the core's `get_avatar_data()` is skipped.
+		// Instead `$args` is returned early, but not without being filtered
+		// first.
+		if ( ! $id_or_email instanceof \WP_Comment ) {
+			return $args;
+		}
+
+		if ( 'activitypub' !== get_comment_meta( $id_or_email->comment_ID, 'protocol', true ) ) {
+			return $args;
+		}
+
+		if ( get_comment_meta( $id_or_email->comment_ID, 'avatar_url', true ) === $args['url'] ) {
+			$args['url'] = \IndieBlocks\proxy_image( $args['url'] );
+		}
+
+		return $args;
 	}
 }
