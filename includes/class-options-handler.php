@@ -12,39 +12,35 @@ class Options_Handler {
 	 * Plugin option schema.
 	 */
 	const SCHEMA = array(
-		'unlisted'            => array(
+		'unlisted'           => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'edit_notifications'  => array(
+		'edit_notifications' => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'limit_updates'       => array(
+		'limit_updates'      => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		// 'post_type_templates' => array(
-		// 	'type'    => 'boolean',
-		// 	'default' => false,
-		// ),
-		'enable_replies'      => array(
+		'enable_replies'     => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'thread_replies'      => array(
+		'thread_replies'     => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'cache_avatars'       => array(
+		'cache_avatars'      => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'proxy_avatars'       => array(
+		'proxy_avatars'      => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-);
+	);
 
 	/**
 	 * Plugin options.
@@ -133,12 +129,11 @@ class Options_Handler {
 		// and create a new `case` that sanitizes all options.
 
 		$options = array(
-			'unlisted'            => isset( $settings['unlisted'] ) ? true : false,
-			'edit_notifications'  => isset( $settings['edit_notifications'] ) ? true : false,
-			'limit_updates'       => isset( $settings['limit_updates'] ) ? true : false,
-			'thread_replies'      => isset( $settings['thread_replies'] ) ? true : false,
-			'enable_replies'      => isset( $settings['enable_replies'] ) ? true : false,
-			// 'post_type_templates' => isset( $settings['post_type_templates'] ) ? true : false,
+			'unlisted'           => isset( $settings['unlisted'] ) ? true : false,
+			'edit_notifications' => isset( $settings['edit_notifications'] ) ? true : false,
+			'limit_updates'      => isset( $settings['limit_updates'] ) ? true : false,
+			'thread_replies'     => isset( $settings['thread_replies'] ) ? true : false,
+			'enable_replies'     => isset( $settings['enable_replies'] ) ? true : false,
 			'cache_avatars'      => isset( $settings['cache_avatars'] ) ? true : false,
 			'proxy_avatars'      => isset( $settings['proxy_avatars'] ) ? true : false,
 		);
@@ -201,5 +196,14 @@ class Options_Handler {
 			</form>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Returns this plugin's settings.
+	 *
+	 * @return array This plugin's settings.
+	 */
+	public function get_options() {
+		return $this->options;
 	}
 }
