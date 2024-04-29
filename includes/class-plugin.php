@@ -242,7 +242,7 @@ class Plugin {
 		}
 
 		// Because ActivityPub uses `pre_get_avatar_data` and, in its callback,
-		// sets a `url`, the rest of the core's `get_avatar_data()` is skipped.
+		// sets a `url`, the rest of core's `get_avatar_data()` is skipped.
 		// Instead `$args` is returned early, but not without being filtered
 		// first.
 		if ( ! $id_or_email instanceof \WP_Comment ) {
