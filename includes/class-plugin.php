@@ -326,7 +326,7 @@ class Plugin {
 
 			if ( '' !== $template ) {
 				ob_start();
-				require_once $template;
+				require $template;
 				$content = ob_get_clean();
 			}
 		}
