@@ -313,7 +313,8 @@ class Plugin {
 		);
 
 		if ( $obj instanceof \WP_Post ) {
-			$post_type = $obj->post_type;
+			$post      = $obj;
+			$post_type = $post->post_type;
 			$template  = locate_template( "activitypub/content-{$post_type}.php" );
 
 			if ( '' !== $template ) {
@@ -322,6 +323,7 @@ class Plugin {
 				$content = ob_get_clean();
 			}
 		} elseif ( $obj instanceof \WP_Comment ) {
+			$comment  = $obj;
 			$template = locate_template( 'activitypub/content-comment.php' );
 
 			if ( '' !== $template ) {
