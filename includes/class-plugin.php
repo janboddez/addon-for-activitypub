@@ -104,26 +104,48 @@ class Plugin {
 	public function enable_unlisted( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound
 		if ( 'activity' === $class && isset( $array['object']['id'] ) ) {
 			// Activity.
-			$post = get_post( url_to_postid( $array['object']['id'] ) );
+			$query = wp_parse_url( $array['object']['id'], PHP_URL_QUERY );
+			if ( ! empty( $query ) ) {
+				parse_str( $query, $args );
+			}
+
+			if ( isset( $args['c'] ) && ctype_digit( $args['c'] ) ) {
+				// Get the "underlying" comment.
+				$post_or_comment = get_comment( $args['c'] );
+			} else {
+				// Get the "underlying" post.
+				$post_or_comment = get_post( url_to_postid( $array['object']['id'] ) );
+			}
 		} elseif ( 'base_object' === $class && isset( $array['id'] ) ) {
-			// Post.
-			$post = get_post( url_to_postid( $array['id'] ) );
+			$query = wp_parse_url( $array['id'], PHP_URL_QUERY );
+			if ( ! empty( $query ) ) {
+				parse_str( $query, $args );
+			}
+
+			if ( isset( $args['c'] ) && ctype_digit( $args['c'] ) ) {
+				// Comment.
+				$post_or_comment = get_comment( $args['c'] );
+			} else {
+				// Post.
+				$post_or_comment = get_post( url_to_postid( $array['id'] ) );
+			}
 		}
 
-		if ( empty( $post->post_author ) ) {
+		if ( empty( $post_or_comment->post_author ) || empty( $post_or_comment->user_id ) ) {
 			// Not a post, most likely. Bail.
-			// @todo: Add comment support?
 			return $array;
 		}
 
-		$is_unlisted     = false;
-		$post_or_comment = $post; // Thinking ahead, right?
+		$is_unlisted = false;
 
 		// Show "RSS-only" posts as unlisted.
-		if ( has_category( 'rss-club', $post->ID ) ) { // @todo: Make this configurable. And, eventually, also exlude these from archives and the like?
+		if ( $post_or_comment instanceof \WP_Post && has_category( 'rss-club', $post_or_comment->ID ) ) { // @todo: Make this configurable. And, eventually, also exlude these from archives and the like?
 			// Note that Gutenberg users may have to set the category, then save
 			// a draft, and only then publish, due to federation being scheduled
 			// early.
+			$is_unlisted = true;
+		} elseif ( $post_or_comment instanceof \WP_Comment ) {
+			// "Unlist" all comments.
 			$is_unlisted = true;
 		}
 
