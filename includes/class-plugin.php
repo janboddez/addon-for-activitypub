@@ -70,6 +70,8 @@ class Plugin {
 		if ( ! empty( $options['proxy_avatars'] ) ) {
 			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 99, 3 );
 		}
+
+		add_filter( 'activitypub_the_content', array( $this, 'filter_content' ), 99, 2 );
 	}
 
 	/**
@@ -256,5 +258,90 @@ class Plugin {
 		}
 
 		return $args;
+	}
+
+	/**
+	 * Filters ActivityPub objects' contents.
+	 *
+	 * @param  string               $content Original content.
+	 * @param  \WP_Post|\WP_Comment $obj     Post or comment object.
+	 * @return string                        Altered content.
+	 */
+	public static function filter_content( $content, $obj ) {
+		$allowed_tags = array(
+			'a'          => array(
+				'href'  => array(),
+				'title' => array(),
+				'class' => array(),
+				'rel'   => array(),
+			),
+			'br'         => array(),
+			'p'          => array(
+				'class' => array(),
+			),
+			'span'       => array(
+				'class' => array(),
+			),
+			'ul'         => array(),
+			'ol'         => array(
+				'reversed' => array(),
+				'start'    => array(),
+			),
+			'li'         => array(
+				'value' => array(),
+			),
+			'strong'     => array(
+				'class' => array(),
+			),
+			'b'          => array(
+				'class' => array(),
+			),
+			'i'          => array(
+				'class' => array(),
+			),
+			'em'         => array(
+				'class' => array(),
+			),
+			'blockquote' => array(),
+			'cite'       => array(),
+			'code'       => array(
+				'class' => array(),
+			),
+			'pre'        => array(
+				'class' => array(),
+			),
+		);
+
+		if ( $obj instanceof \WP_Post ) {
+			$post_type = $obj->post_type;
+			$template  = locate_template( "activitypub/content-{$post_type}.php" );
+
+			if ( '' !== $template ) {
+				ob_start();
+				require $template;
+				$content = ob_get_clean();
+			}
+		} elseif ( $obj instanceof \WP_Comment ) {
+			$template = locate_template( 'activitypub/content-comment.php' );
+
+			if ( '' !== $template ) {
+				ob_start();
+				require_once $template;
+				$content = ob_get_clean();
+			}
+		}
+
+		if ( empty( $template ) ) {
+			// Return unaltered.
+			return $content;
+		}
+
+		// If a template was used, "sanitize" the new content (somewhat).
+		$content = wp_kses( $content, $allowed_tags );
+
+		// Strip whitespace, but ignore `pre` elements' contents.
+		$content = preg_replace( '~<pre[^>]*>.*?</pre>(*SKIP)(*FAIL)|\r|\n|\t~s', '', $content );
+
+		return $content;
 	}
 }
