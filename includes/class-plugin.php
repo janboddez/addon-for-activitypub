@@ -392,6 +392,15 @@ class Plugin {
 			return;
 		}
 
+		if ( post_password_required( $post ) ) {
+			return;
+		}
+
+		if ( 'publish' !== $new_status ) {
+			// Creates and updates only, and both require a post that's published.
+			return;
+		}
+
 		// Unhook the original callback.
 		error_log( '[Add-on for ActivityPub] Removing original callback.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		remove_action( 'transition_post_status', array( \Activitypub\Scheduler::class, 'schedule_post_activity' ), 33 );
@@ -410,10 +419,6 @@ class Plugin {
 	 * @param \WP_Post $post Inserted or updated post object.
 	 */
 	public function schedule_post_activity( $post ) {
-		if ( post_password_required( $post ) ) {
-			return;
-		}
-
 		$status = get_post_meta( $post->ID, 'activitypub_status', true );
 		if ( 'federated' === $status ) {
 			// Post was federated previously.
