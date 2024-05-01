@@ -134,19 +134,32 @@ class Plugin {
 
 		if ( 'activity' === $class && $post_or_comment instanceof \WP_Post ) {
 			// Might this be a repost?
-			error_log( '[Add-on for ActivityPub] Got a boost?' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			// The issue is this typically hook is run before the custom fields are set, so you may have to save reposts as draft first!
-
-			// A total hack, but a guy can try ...
 			$kind       = get_post_meta( $post_or_comment->ID, '_indieblocks_kind', true );
 			$linked_url = get_post_meta( $post_or_comment->ID, '_indieblocks_linked_url', true );
 
-			if ( 'repost' === $kind && '' !== $linked_url /*&& 'Create' === $array['type']*/ ) {
-				error_log( '[Add-on for ActivityPub] Got a boost!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				$array['type'] = 'Announce';
-				// Overwrite `object` property with just the ID (i.e., the URL) of the boosted page.
-				$array['object'] = $linked_url;
+			if ( 'repost' === $kind && '' !== $linked_url ) {
+				if ( 'Delete' === $array['type'] ) {
+					error_log( '[Add-on for ActivityPub] Undoing a boost!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					$orig = $array['object'];
+
+					$array['type']   = 'Undo';
+					$array['object'] = array(
+						'id'        => $orig['id'],
+						'type'      => 'Announce',
+						'actor'     => isset( $orig['actor'] ) ? $orig['actor'] : $array['actor'],
+						'to'        => $orig['to'],
+						'cc'        => $orig['cc'],
+						'published' => $orig['published'],
+						'object'    => $linked_url,
+					);
+				} else {
+					error_log( '[Add-on for ActivityPub] "Creating" a boost!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+					$array['type']   = 'Announce';
+					$array['object'] = $linked_url;
+				}
 			}
+
+			error_log( var_export( $array, true ) );
 		}
 
 		/**
