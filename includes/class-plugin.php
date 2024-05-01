@@ -379,32 +379,32 @@ class Plugin {
 	 * @param \WP_Post $post       Post object.
 	 */
 	public function delay_scheduling( $new_status, $old_status, $post ) {
-		if ( ! class_exists( '\\Activitypub\\Scheduler' ) ) {
-			// Do nothing.
+		if ( ! class_exists( '\\Activitypub\\Scheduler' ) || ! method_exists( \Activitypub\Scheduler::class, 'schedule_post_activity' ) ) {
+			// Missing dependency. Bail.
 			return;
 		}
 
 		if ( 'trash' === $new_status ) {
-			// Do nothing.
-			error_log( 'Deleting a post.' );
+			// Do nothing on delete.
+			error_log( '[Add-on for ActivityPub] Deleting. Bail.' );
 			return;
 		}
 
 		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
 			// Do nothing.
-			error_log( 'Not a REST request.' );
+			error_log( '[Add-on for ActivityPub] Not a REST request.' );
 			return;
 		}
 
 		// Unhook the original callback.
-		error_log( 'Removing the one callback.' );
+		error_log( '[Add-on for ActivityPub] Removing original callback.' );
 		remove_action( 'transition_post_status', array( \Activitypub\Scheduler::class, 'schedule_post_activity' ), 33 );
 
 		// And hook up our own instead.
 		$post_types = get_post_types_by_support( 'activitypub' );
 		if ( in_array( $post->post_type, $post_types, true ) ) {
-			error_log( 'Hooking up that new callback.' );
-			add_action( "rest_after_insert_{$post->post_type}", array( $this, 'schedule_post_activity' ), 10, 3 ); // Our own callback.
+			error_log( '[Add-on for ActivityPub] Hooking up new callback.' );
+			add_action( "rest_after_insert_{$post->post_type}", array( $this, 'schedule_post_activity' ), 10, 3 );
 		}
 	}
 
@@ -416,22 +416,23 @@ class Plugin {
 	 * @param bool             $creating True when creating a post, false when updating.
 	 */
 	public function schedule_post_activity( $post, $request, $creating ) {
-		error_log( 'Our own callback!' );
 		if ( post_password_required( $post ) ) {
 			return;
 		}
 
 		$status = get_post_meta( $post->ID, 'activitypub_status', true );
 		if ( 'federated' === $status ) {
-			error_log( 'Updating!' );
+			// Post was federated previously.
+			error_log( '[Add-on for ActivityPub] Updating!' );
 			$type = 'Update';
 		} elseif ( 'federate' !== $status ) {
-			error_log( 'Creating!' );
+			// Post not yet scheduled for federation. Not sure if we need this check.
+			error_log( '[Add-on for ActivityPub] Creating!' );
 			$type = 'Create';
 		}
 
 		if ( empty( $type ) ) {
-			error_log( 'Neither creating nor updating!' );
+			error_log( '[Add-on for ActivityPub] Neither creating nor updating!' );
 			return;
 		}
 
@@ -439,10 +440,12 @@ class Plugin {
 		$args = array( $post->ID, $type );
 
 		if ( false === wp_next_scheduled( $hook, $args ) ) {
+			error_log( '[Add-on for ActivityPub] Scheduling ...' );
+
 			if ( function_exists( '\\Activitypub\\set_wp_object_state' ) ) {
-				error_log( 'Lalala!' );
 				\Activitypub\set_wp_object_state( $post, 'federate' );
 			}
+
 			wp_schedule_single_event( time(), $hook, $args );
 		}
 	}
