@@ -53,7 +53,7 @@ class Plugin {
 		$this->options_handler = new Options_Handler();
 		$this->options_handler->register();
 
-		add_filter( 'activitypub_activity_object_array', array( $this, 'enable_unlisted' ), 99, 4 );
+		add_filter( 'activitypub_activity_object_array', array( $this, 'filter_object' ), 99, 4 );
 
 		if ( ! empty( $options['edit_notifications'] ) ) {
 			add_action( 'activitypub_handled_update', array( $this, 'send_edit_notification' ), 99, 4 );
@@ -89,7 +89,7 @@ class Plugin {
 	}
 
 	/**
-	 * Renders a status unlisted, if it is in the `rss-club` category.
+	 * Filters (Activities') objects before they're rendered or federated.
 	 *
 	 * @todo: Make the category configurable.
 	 *
@@ -99,7 +99,7 @@ class Plugin {
 	 * @param  Base_Object $object Activity object.
 	 * @return array               The updated array.
 	 */
-	public function enable_unlisted( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+	public function filter_object( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		$options = $this->options_handler->get_options();
 
 		if ( empty( $options['unlisted'] ) && empty( $options['unlisted_comments'] ) ) {
@@ -108,31 +108,27 @@ class Plugin {
 
 		if ( 'activity' === $class && isset( $array['object']['id'] ) ) {
 			// Activity.
-			$query = wp_parse_url( $array['object']['id'], PHP_URL_QUERY );
-			if ( ! empty( $query ) ) {
-				parse_str( $query, $args );
-			}
-
-			if ( isset( $args['c'] ) && ctype_digit( $args['c'] ) ) {
-				// Get the "underlying" comment.
-				$post_or_comment = get_comment( $args['c'] );
-			} else {
-				// Get the "underlying" post.
-				$post_or_comment = get_post( url_to_postid( $array['object']['id'] ) );
-			}
+			$object_id = $array['object']['id'];
 		} elseif ( 'base_object' === $class && isset( $array['id'] ) ) {
-			$query = wp_parse_url( $array['id'], PHP_URL_QUERY );
-			if ( ! empty( $query ) ) {
-				parse_str( $query, $args );
-			}
+			$object_id = $array['id'];
+		}
 
-			if ( isset( $args['c'] ) && ctype_digit( $args['c'] ) ) {
-				// Comment.
-				$post_or_comment = get_comment( $args['c'] );
-			} else {
-				// Post.
-				$post_or_comment = get_post( url_to_postid( $array['id'] ) );
-			}
+		if ( empty( $object_id ) ) {
+			error_log( "[Add-on for ActivityPub] Couldn't find object ID." ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return;
+		}
+
+		$query = wp_parse_url( $object_id, PHP_URL_QUERY );
+		if ( ! empty( $query ) ) {
+			parse_str( $query, $args );
+		}
+
+		if ( isset( $args['c'] ) && ctype_digit( $args['c'] ) ) {
+			// Comment.
+			$post_or_comment = get_comment( $args['c'] );
+		} else {
+			// Post.
+			$post_or_comment = get_post( url_to_postid( $array['id'] ) );
 		}
 
 		if ( empty( $post_or_comment->post_author ) || empty( $post_or_comment->user_id ) ) {
@@ -142,11 +138,8 @@ class Plugin {
 
 		$is_unlisted = false;
 
-		// Show "RSS-only" posts as unlisted.
 		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['unlisted'] ) && has_category( 'rss-club', $post_or_comment->ID ) ) { // @todo: Make this configurable. And, eventually, also exlude these from archives and the like?
-			// Note that Gutenberg users may have to set the category, then save
-			// a draft, and only then publish, due to federation being scheduled
-			// early.
+			// Show "RSS-only" posts as unlisted. We need to make this smarter.
 			$is_unlisted = true;
 		} elseif ( $post_or_comment instanceof \WP_Comment && ! empty( $options['unlisted_comments'] ) ) {
 			// "Unlist" all comments.
@@ -154,8 +147,7 @@ class Plugin {
 		}
 
 		// Let others filter the "unlisted" attribute. Like, one could check for
-		// certain post formats and whatnot. Or, *in the future*, unlist all
-		// comments ...
+		// certain post formats and whatnot.
 		if ( ! apply_filters( 'addon_for_activitypub_is_unlisted', $is_unlisted, $post_or_comment ) ) {
 			return $array;
 		}
