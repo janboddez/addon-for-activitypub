@@ -53,11 +53,7 @@ class Plugin {
 		$this->options_handler = new Options_Handler();
 		$this->options_handler->register();
 
-		$options = $this->options_handler->get_options();
-
-		if ( ! empty( $options['unlisted'] ) ) {
-			add_filter( 'activitypub_activity_object_array', array( $this, 'enable_unlisted' ), 99, 4 );
-		}
+		add_filter( 'activitypub_activity_object_array', array( $this, 'enable_unlisted' ), 99, 4 );
 
 		if ( ! empty( $options['edit_notifications'] ) ) {
 			add_action( 'activitypub_handled_update', array( $this, 'send_edit_notification' ), 99, 4 );
@@ -104,6 +100,12 @@ class Plugin {
 	 * @return array               The updated array.
 	 */
 	public function enable_unlisted( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		$options = $this->options_handler->get_options();
+
+		if ( empty( $options['unlisted'] ) && empty( $options['unlisted_comments'] ) ) {
+			return $array;
+		}
+									 
 		if ( 'activity' === $class && isset( $array['object']['id'] ) ) {
 			// Activity.
 			$query = wp_parse_url( $array['object']['id'], PHP_URL_QUERY );
@@ -141,12 +143,12 @@ class Plugin {
 		$is_unlisted = false;
 
 		// Show "RSS-only" posts as unlisted.
-		if ( $post_or_comment instanceof \WP_Post && has_category( 'rss-club', $post_or_comment->ID ) ) { // @todo: Make this configurable. And, eventually, also exlude these from archives and the like?
+		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['unlisted'] ) && has_category( 'rss-club', $post_or_comment->ID ) ) { // @todo: Make this configurable. And, eventually, also exlude these from archives and the like?
 			// Note that Gutenberg users may have to set the category, then save
 			// a draft, and only then publish, due to federation being scheduled
 			// early.
 			$is_unlisted = true;
-		} elseif ( $post_or_comment instanceof \WP_Comment ) {
+		} elseif ( $post_or_comment instanceof \WP_Comment && ! empty( $options['unlisted_comments'] ) ) {
 			// "Unlist" all comments.
 			$is_unlisted = true;
 		}
@@ -154,28 +156,30 @@ class Plugin {
 		// Let others filter the "unlisted" attribute. Like, one could check for
 		// certain post formats and whatnot. Or, *in the future*, unlist all
 		// comments ...
-		if ( apply_filters( 'addon_for_activitypub_is_unlisted', $is_unlisted, $post_or_comment ) ) {
-			$to = isset( $array['to'] ) ? $array['to'] : array();
-			$cc = isset( $array['cc'] ) ? $array['cc'] : array();
+		if ( ! apply_filters( 'addon_for_activitypub_is_unlisted', $is_unlisted, $post_or_comment ) ) {
+			return $array;
+		}
 
-			// phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.Found,Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure
-			if ( false !== ( $key = array_search( 'https://www.w3.org/ns/activitystreams#Public', $to, true ) ) ) {
-				unset( $to[ $key ] ); // Remove the "Public" value ...
-			}
+		$to = isset( $array['to'] ) ? $array['to'] : array();
+		$cc = isset( $array['cc'] ) ? $array['cc'] : array();
 
-			$cc[] = 'https://www.w3.org/ns/activitystreams#Public'; // And add it to `cc`.
+		// phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.Found,Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure
+		if ( false !== ( $key = array_search( 'https://www.w3.org/ns/activitystreams#Public', $to, true ) ) ) {
+			unset( $to[ $key ] ); // Remove the "Public" value ...
+		}
 
-			$to = array_values( $to ); // Renumber.
-			$cc = array_values( array_unique( $cc ) ); // Remove duplicates.
+		$cc[] = 'https://www.w3.org/ns/activitystreams#Public'; // And add it to `cc`.
 
-			$array['to'] = $to;
-			$array['cc'] = $cc;
+		$to = array_values( $to ); // Renumber.
+		$cc = array_values( array_unique( $cc ) ); // Remove duplicates.
 
-			if ( 'activity' === $class ) {
-				// Update "base object," too.
-				$array['object']['to'] = $to;
-				$array['object']['cc'] = $cc;
-			}
+		$array['to'] = $to;
+		$array['cc'] = $cc;
+
+		if ( 'activity' === $class ) {
+			// Update "base object," too.
+			$array['object']['to'] = $to;
+			$array['object']['cc'] = $cc;
 		}
 
 		return $array;
