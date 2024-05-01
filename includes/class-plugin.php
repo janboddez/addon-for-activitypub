@@ -130,38 +130,8 @@ class Plugin {
 			return $array;
 		}
 
+		// Right. Now we can finally get going.
 		$options = $this->options_handler->get_options();
-
-		if ( 'activity' === $class && $post_or_comment instanceof \WP_Post ) {
-			// Might this be a repost?
-			$kind       = get_post_meta( $post_or_comment->ID, '_indieblocks_kind', true );
-			$linked_url = get_post_meta( $post_or_comment->ID, '_indieblocks_linked_url', true );
-
-			if ( 'repost' === $kind && '' !== $linked_url ) {
-				if ( 'Delete' === $array['type'] ) {
-					error_log( '[Add-on for ActivityPub] Undoing a boost!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					$orig = $array['object'];
-
-					// Replace Delete with Undo, rework `object`. Doesn't seem
-					// to work, though, although I don't quite know why.
-					// @link https://github.com/pixelfed/pixelfed/blob/dev/app/Transformer/ActivityPub/Verb/UndoAnnounce.php
-					$array['type']   = 'Undo';
-					$array['object'] = array(
-						'id'        => $orig['id'],
-						'type'      => 'Announce',
-						'actor'     => isset( $orig['actor'] ) ? $orig['actor'] : $array['actor'],
-						'to'        => $orig['to'],
-						'cc'        => $orig['cc'],
-						'published' => $orig['published'],
-						'object'    => $linked_url,
-					);
-				} else {
-					error_log( '[Add-on for ActivityPub] "Creating" a boost!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-					$array['type']   = 'Announce';
-					$array['object'] = $linked_url;
-				}
-			}
-		}
 
 		/**
 		 * The "unlisted" stuff.
@@ -410,7 +380,7 @@ class Plugin {
 		}
 
 		if ( 'trash' === $new_status ) {
-			// Do nothing on delete.
+			// Leave deletes alone.
 			error_log( '[Add-on for ActivityPub] Deleting. Bail.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return;
 		}
@@ -422,11 +392,14 @@ class Plugin {
 		}
 
 		if ( post_password_required( $post ) ) {
+			// Stop right there.
 			return;
 		}
 
 		if ( 'publish' !== $new_status ) {
-			// Creates and updates only, and both require a post that's published.
+			// We "delay" creates and updates only, and both require a post
+			// that's published. If we didn't check this, drafts would get
+			// federated, too.
 			return;
 		}
 
@@ -448,13 +421,22 @@ class Plugin {
 	 * @param \WP_Post $post Inserted or updated post object.
 	 */
 	public function schedule_post_activity( $post ) {
+		if ( post_password_required( $post ) ) {
+			// Stop right there.
+			return;
+		}
+
+		if ( 'publish' !== $post->post_status ) {
+			// This function concerns only Creates and Updates.
+			return;
+		}
+
 		$status = get_post_meta( $post->ID, 'activitypub_status', true );
 		if ( 'federated' === $status ) {
 			// Post was federated previously.
 			error_log( '[Add-on for ActivityPub] Updating!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$type = 'Update';
-		} else /*if ( 'federate' !== $status )*/ {
-			// Post not yet scheduled for federation. Not sure if we need this check.
+		} else {
 			error_log( '[Add-on for ActivityPub] Creating!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$type = 'Create';
 		}
