@@ -142,6 +142,9 @@ class Plugin {
 					error_log( '[Add-on for ActivityPub] Undoing a boost!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 					$orig = $array['object'];
 
+					// Replace Delete with Undo, rework `object`. Doesn't seem
+					// to work, though, although I don't quite know why.
+					// @link https://github.com/pixelfed/pixelfed/blob/dev/app/Transformer/ActivityPub/Verb/UndoAnnounce.php
 					$array['type']   = 'Undo';
 					$array['object'] = array(
 						'id'        => $orig['id'],
@@ -158,8 +161,6 @@ class Plugin {
 					$array['object'] = $linked_url;
 				}
 			}
-
-			error_log( var_export( $array, true ) );
 		}
 
 		/**
