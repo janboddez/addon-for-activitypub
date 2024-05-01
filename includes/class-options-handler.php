@@ -16,6 +16,10 @@ class Options_Handler {
 			'type'    => 'boolean',
 			'default' => false,
 		),
+		'unlisted_comments'  => array(
+			'type'    => 'boolean',
+			'default' => false,
+		),
 		'edit_notifications' => array(
 			'type'    => 'boolean',
 			'default' => false,
@@ -130,6 +134,7 @@ class Options_Handler {
 
 		$options = array(
 			'unlisted'           => isset( $settings['unlisted'] ) ? true : false,
+			'unlisted_comments'  => isset( $settings['unlisted_comments'] ) ? true : false,
 			'edit_notifications' => isset( $settings['edit_notifications'] ) ? true : false,
 			'limit_updates'      => isset( $settings['limit_updates'] ) ? true : false,
 			'thread_replies'     => isset( $settings['thread_replies'] ) ? true : false,
@@ -156,10 +161,15 @@ class Options_Handler {
 				settings_fields( 'addon-for-activitypub-settings-group' );
 				?>
 				<table class="form-table">
-				<tr valign="top">
+					<tr valign="top">
 						<th scope="row"><?php esc_html_e( '“Unlisted” Statuses', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[unlisted]" value="1" <?php checked( ! empty( $this->options['unlisted'] ) ); ?>/> <?php esc_html_e( 'Enable “unlisted” statuses', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Federate certain (!) posts as “unlisted.”', 'addon-for-activitypub' ); ?></p></td>
+					</tr>
+					<tr valign="top">
+						<th scope="row"><?php esc_html_e( '“Unlisted” Comments', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[unlisted_comments]" value="1" <?php checked( ! empty( $this->options['unlisted_comments'] ) ); ?>/> <?php esc_html_e( '“Unlist” comments', 'addon-for-activitypub' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Federate comments as “unlisted.”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( '“Edit” Notifications', 'addon-for-activitypub' ); ?></th>
