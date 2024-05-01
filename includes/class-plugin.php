@@ -100,12 +100,6 @@ class Plugin {
 	 * @return array               The updated array.
 	 */
 	public function filter_object( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
-		$options = $this->options_handler->get_options();
-
-		if ( empty( $options['unlisted'] ) && empty( $options['unlisted_comments'] ) ) {
-			return $array;
-		}
-
 		if ( 'activity' === $class && isset( $array['object']['id'] ) ) {
 			// Activity.
 			$object_id = $array['object']['id'];
@@ -115,7 +109,7 @@ class Plugin {
 
 		if ( empty( $object_id ) ) {
 			error_log( "[Add-on for ActivityPub] Couldn't find object ID." ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			return;
+			return $array;
 		}
 
 		$query = wp_parse_url( $object_id, PHP_URL_QUERY );
@@ -128,14 +122,36 @@ class Plugin {
 			$post_or_comment = get_comment( $args['c'] );
 		} else {
 			// Post.
-			$post_or_comment = get_post( url_to_postid( $array['id'] ) );
+			$post_or_comment = get_post( url_to_postid( $object_id ) );
 		}
 
-		if ( empty( $post_or_comment->post_author ) || empty( $post_or_comment->user_id ) ) {
-			// Not a post, most likely. Bail.
+		if ( empty( $post_or_comment->post_author ) && empty( $post_or_comment->user_id ) ) {
+			// Not a post or user comment, most likely. Bail.
 			return $array;
 		}
 
+		$options = $this->options_handler->get_options();
+
+		if ( 'activity' === $class && $post_or_comment instanceof \WP_Post ) {
+			// Might this be a repost?
+			error_log( '[Add-on for ActivityPub] Got a boost?' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			// The issue is this typically hook is run before the custom fields are set, so you may have to save reposts as draft first!
+
+			// A total hack, but a guy can try ...
+			$kind       = get_post_meta( $post_or_comment->ID, '_indieblocks_kind', true );
+			$linked_url = get_post_meta( $post_or_comment->ID, '_indieblocks_linked_url', true );
+
+			if ( 'repost' === $kind && '' !== $linked_url /*&& 'Create' === $array['type']*/ ) {
+				error_log( '[Add-on for ActivityPub] Got a boost!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				$array['type'] = 'Announce';
+				// Overwrite `object` property with just the ID (i.e., the URL) of the boosted page.
+				$array['object'] = $linked_url;
+			}
+		}
+
+		/**
+		 * The "unlisted" stuff.
+		 */
 		$is_unlisted = false;
 
 		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['unlisted'] ) && has_category( 'rss-club', $post_or_comment->ID ) ) { // @todo: Make this configurable. And, eventually, also exlude these from archives and the like?
@@ -148,30 +164,29 @@ class Plugin {
 
 		// Let others filter the "unlisted" attribute. Like, one could check for
 		// certain post formats and whatnot.
-		if ( ! apply_filters( 'addon_for_activitypub_is_unlisted', $is_unlisted, $post_or_comment ) ) {
-			return $array;
-		}
+		if ( apply_filters( 'addon_for_activitypub_is_unlisted', $is_unlisted, $post_or_comment ) ) {
 
-		$to = isset( $array['to'] ) ? $array['to'] : array();
-		$cc = isset( $array['cc'] ) ? $array['cc'] : array();
+			$to = isset( $array['to'] ) ? $array['to'] : array();
+			$cc = isset( $array['cc'] ) ? $array['cc'] : array();
 
-		// phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.Found,Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure
-		if ( false !== ( $key = array_search( 'https://www.w3.org/ns/activitystreams#Public', $to, true ) ) ) {
-			unset( $to[ $key ] ); // Remove the "Public" value ...
-		}
+			// phpcs:ignore Generic.CodeAnalysis.AssignmentInCondition.Found,Squiz.PHP.DisallowMultipleAssignments.FoundInControlStructure
+			if ( false !== ( $key = array_search( 'https://www.w3.org/ns/activitystreams#Public', $to, true ) ) ) {
+				unset( $to[ $key ] ); // Remove the "Public" value ...
+			}
 
-		$cc[] = 'https://www.w3.org/ns/activitystreams#Public'; // And add it to `cc`.
+			$cc[] = 'https://www.w3.org/ns/activitystreams#Public'; // And add it to `cc`.
 
-		$to = array_values( $to ); // Renumber.
-		$cc = array_values( array_unique( $cc ) ); // Remove duplicates.
+			$to = array_values( $to ); // Renumber.
+			$cc = array_values( array_unique( $cc ) ); // Remove duplicates.
 
-		$array['to'] = $to;
-		$array['cc'] = $cc;
+			$array['to'] = $to;
+			$array['cc'] = $cc;
 
-		if ( 'activity' === $class ) {
-			// Update "base object," too.
-			$array['object']['to'] = $to;
-			$array['object']['cc'] = $cc;
+			if ( 'activity' === $class ) {
+				// Update "base object," too.
+				$array['object']['to'] = $to;
+				$array['object']['cc'] = $cc;
+			}
 		}
 
 		return $array;
@@ -424,7 +439,7 @@ class Plugin {
 			// Post was federated previously.
 			error_log( '[Add-on for ActivityPub] Updating!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$type = 'Update';
-		} elseif ( 'federate' !== $status ) {
+		} else /*if ( 'federate' !== $status )*/ {
 			// Post not yet scheduled for federation. Not sure if we need this check.
 			error_log( '[Add-on for ActivityPub] Creating!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$type = 'Create';
