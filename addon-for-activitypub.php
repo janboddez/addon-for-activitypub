@@ -25,9 +25,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Load dependencies.
-// require_once __DIR__ . '/build/vendor/scoper-autoload.php';
 require_once __DIR__ . '/includes/class-options-handler.php';
 require_once __DIR__ . '/includes/class-plugin.php';
+require_once __DIR__ . '/includes/functions.php';
 
 $addon_for_activitypub = Plugin::get_instance();
 $addon_for_activitypub->register();

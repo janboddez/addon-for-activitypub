@@ -149,7 +149,6 @@ class Plugin {
 		// Let others filter the "unlisted" attribute. Like, one could check for
 		// certain post formats and whatnot.
 		if ( apply_filters( 'addon_for_activitypub_is_unlisted', $is_unlisted, $post_or_comment ) ) {
-
 			$to = isset( $array['to'] ) ? $array['to'] : array();
 			$cc = isset( $array['cc'] ) ? $array['cc'] : array();
 
@@ -170,6 +169,58 @@ class Plugin {
 				// Update "base object," too.
 				$array['object']['to'] = $to;
 				$array['object']['cc'] = $cc;
+			}
+		}
+
+		/**
+		 * The "reply" stuff.
+		 */
+		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['enable_replies'] ) ) {
+			// Again, we rely on "IndieBlocks meta" ... for now.
+			$kind       = get_post_meta( $post_or_comment->ID, '_indieblocks_kind', true );
+			$linked_url = get_post_meta( $post_or_comment->ID, '_indieblocks_linked_url', true );
+
+			if ( 'reply' === $kind && '' !== $linked_url ) {
+				error_log( '[Add-on for ActivityPub] Got a reply.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+				$response     = remote_get( $linked_url, 'application/activity+json' );
+				$content_type = wp_remote_retrieve_header( $response, 'content-type' );
+			}
+
+			if ( ! empty( $content_type ) && 'application/activity+json' === $content_type ) {
+				error_log( '[Add-on for ActivityPub] Fediverse compatible.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+				// Remote page seems to be Fediverse compatible.
+				if ( 'activity' === $class ) {
+					$array['object']['inReplyTo'] = $linked_url;
+				} elseif ( 'base_object' === $class ) {
+					$array['inReplyTo'] = $linked_url;
+				}
+
+				// Now, trim any reply context off the post content.
+				if ( preg_match( '~<div class="e-content">.+?</div>~s', $post_or_comment->post_content, $content ) ) {
+					$copy               = clone $post_or_comment;
+					$copy->post_content = $content[0]; // The `e-content` only, without reply context.
+
+					// Regenerate "ActivityPub content" using the "slimmed down"
+					// post content. We ourselves use the "original"post, hence
+					// the need to instead pass copy with modified content.
+					$content = apply_filters( 'activitypub_the_content', $content[0], $copy );
+
+					if ( 'activity' === $class ) {
+						$array['object']['content'] = $content;
+
+						foreach ( $array['object']['contentMap'] as $locale => $value ) {
+							$array['object']['contentMap'][ $locale ] = $content;
+						}
+					} elseif ( 'base_object' === $class ) {
+						$array['content'] = $content;
+
+						foreach ( $array['contentMap'] as $locale => $value ) {
+							$array['contentMap'][ $locale ] = $content;
+						}
+					}
+				}
 			}
 		}
 
