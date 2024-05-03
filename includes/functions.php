@@ -2,10 +2,10 @@
 /**
  * Helper functions.
  *
- * @package ActivityPub\Addon
+ * @package AddonForActivityPub
  */
 
-namespace Activitypub\Addon;
+namespace AddonForActivityPub;
 
 /**
  * Wrapper around `wp_remote_get()`.

@@ -14,10 +14,10 @@
  *
  * @author  Jan Boddez <jan@janboddez.be>
  * @license http://www.gnu.org/licenses/gpl-3.0.html GNU General Public License v3.0
- * @package ActivityPub\Addon
+ * @package AddonForActivityPub
  */
 
-namespace Activitypub\Addon;
+namespace AddonForActivityPub;
 
 // Prevent direct access.
 if ( ! defined( 'ABSPATH' ) ) {
@@ -25,9 +25,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 // Load dependencies.
-require_once __DIR__ . '/includes/class-options-handler.php';
-require_once __DIR__ . '/includes/class-plugin.php';
-require_once __DIR__ . '/includes/functions.php';
+require __DIR__ . '/build/vendor/autoload.php';
+require __DIR__ . '/includes/functions.php';
 
 $addon_for_activitypub = Plugin::get_instance();
 $addon_for_activitypub->register();

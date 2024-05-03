@@ -2,10 +2,10 @@
 /**
  * Main plugin class.
  *
- * @package ActivityPub\Addon
+ * @package AddonForActivityPub
  */
 
-namespace Activitypub\Addon;
+namespace AddonForActivityPub;
 
 class Options_Handler {
 	/**

@@ -1,0 +1,12 @@
+{
+    "require": {
+        "mf2\/mf2": "^0.5",
+        "masterminds\/html5": "^2.9",
+        "deruli\/html-minifier": "^0.5"
+    },
+    "autoload": {
+        "classmap": [
+            "..\/includes\/"
+        ]
+    }
+}

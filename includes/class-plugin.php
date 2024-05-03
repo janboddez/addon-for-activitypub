@@ -2,10 +2,10 @@
 /**
  * Main plugin class.
  *
- * @package ActivityPub\Addon
+ * @package AddonForActivityPub
  */
 
-namespace Activitypub\Addon;
+namespace AddonForActivityPub;
 
 use Activitypub\Activity\Base_Object;
 
@@ -68,7 +68,6 @@ class Plugin {
 		}
 
 		add_filter( 'activitypub_the_content', array( $this, 'filter_content' ), 99, 2 );
-
 		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 32, 3 );
 	}
 
@@ -410,9 +409,10 @@ class Plugin {
 
 		// If a template was used, "sanitize" the new content (somewhat).
 		$content = wp_kses( $content, $allowed_tags );
-
 		// Strip whitespace, but ignore `pre` elements' contents.
 		$content = preg_replace( '~<pre[^>]*>.*?</pre>(*SKIP)(*FAIL)|\r|\n|\t~s', '', $content );
+		// Strip unnecessary whitespace.
+		$content = zz\Html\HTMLMinify::minify( $content );
 
 		return $content;
 	}
