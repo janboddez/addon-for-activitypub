@@ -53,6 +53,9 @@ class Plugin {
 		$this->options_handler = new Options_Handler();
 		$this->options_handler->register();
 
+		// Translate "IndieWeb" post types to the proper activities and objects.
+		Post_Types::register();
+
 		add_filter( 'activitypub_activity_object_array', array( $this, 'filter_object' ), 99, 4 );
 
 		if ( ! empty( $options['edit_notifications'] ) ) {
@@ -99,38 +102,13 @@ class Plugin {
 	 * @return array               The updated array.
 	 */
 	public function filter_object( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
-		if ( 'activity' === $class && isset( $array['object']['id'] ) ) {
-			// Activity.
-			$object_id = $array['object']['id'];
-		} elseif ( 'base_object' === $class && isset( $array['id'] ) ) {
-			$object_id = $array['id'];
-		}
+		$post_or_comment = get_object( $array, $class );
 
-		if ( empty( $object_id ) ) {
-			error_log( "[Add-on for ActivityPub] Couldn't find object ID." ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		if ( ! $post_or_comment ) {
 			return $array;
 		}
 
-		$query = wp_parse_url( $object_id, PHP_URL_QUERY );
-		if ( ! empty( $query ) ) {
-			parse_str( $query, $args );
-		}
-
-		if ( isset( $args['c'] ) && ctype_digit( $args['c'] ) ) {
-			// Comment.
-			$post_or_comment = get_comment( $args['c'] );
-		} else {
-			// Post.
-			$post_or_comment = get_post( url_to_postid( $object_id ) );
-		}
-
-		if ( empty( $post_or_comment->post_author ) && empty( $post_or_comment->user_id ) ) {
-			// Not a post or user comment, most likely. Bail.
-			return $array;
-		}
-
-		// Right. Now we can finally get going.
-		$options = $this->options_handler->get_options();
+		$options = get_options();
 
 		/**
 		 * The "unlisted" stuff.
@@ -168,85 +146,6 @@ class Plugin {
 				// Update "base object," too.
 				$array['object']['to'] = $to;
 				$array['object']['cc'] = $cc;
-			}
-		}
-
-		/**
-		 * The "reply" stuff.
-		 */
-		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['enable_replies'] ) ) {
-			// Get the (filtered) post content.
-			$content = apply_filters( 'the_content', $post_or_comment->post_content );
-
-			// We'll want `php-mf` to parse it as a `h-entry`.
-			if ( ! preg_match( '~ class=("|\')([^"\']*?)e-content([^"\']*?)("|\')~', $content ) ) {
-				$content = '<div class="e-content">' . $content . '</div>';
-			}
-			$content = '<div class="h-entry">' . $content . '</div>';
-
-			// Look for a cached result.
-			$hash = hash( 'sha256', $content );
-			$mf2  = get_transient( 'indieblocks:mf2:' . $hash );
-
-			if ( false === $mf2 ) {
-				// Nothing in cache. Parse post.
-				$mf2 = Mf2\parse( $content );
-				set_transient( 'indieblocks:mf2:' . $hash, $mf2, 1800 ); // Cache for half an hour.
-			}
-
-			// Look for an `in-reply-to` URL.
-			if ( ! empty( $mf2['items'][0]['properties'] ) ) {
-				$props = $mf2['items'][0]['properties'];
-
-				if ( ! empty( $props['in-reply-to'][0] ) && filter_var( $props['in-reply-to'][0], FILTER_VALIDATE_URL ) ) {
-					$reply_url = $props['in-reply-to'][0];
-				} elseif ( ! empty( $props['in-reply-to'][0]['value'] ) && filter_var( $props['in-reply-to'][0]['value'], FILTER_VALIDATE_URL ) ) {
-					$reply_url = $props['in-reply-to'][0]['value'];
-				}
-			}
-
-			if ( ! empty( $reply_url ) ) {
-				error_log( '[Add-on for ActivityPub] Got a reply.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-
-				// Ensure the linked URL is actually Fediverse compatible.
-				$response     = remote_get( $reply_url, 'application/activity+json' ); // A HEAD request doesn't work for WordPress pages.
-				$content_type = wp_remote_retrieve_header( $response, 'content-type' );
-			}
-
-			if ( ! empty( $content_type ) && 'application/activity+json' === $content_type ) {
-				error_log( '[Add-on for ActivityPub] Fediverse compatible.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-
-				// Remote page seems to be Fediverse compatible.
-				if ( 'activity' === $class ) {
-					$array['object']['inReplyTo'] = $reply_url;
-				} elseif ( 'base_object' === $class ) {
-					$array['inReplyTo'] = $reply_url;
-				}
-
-				// Now, trim any reply context off the post content.
-				if ( preg_match( '~<div class="e-content">.+?</div>~s', $content, $match ) ) {
-					$copy               = clone $post_or_comment;
-					$copy->post_content = $match[0]; // The `e-content` only, without reply context (if any).
-
-					// Regenerate "ActivityPub content" using the "slimmed down"
-					// post content. We ourselves use the "original" post, hence
-					// the need to pass a copy with modified content.
-					$content = apply_filters( 'activitypub_the_content', $match[0], $copy );
-
-					if ( 'activity' === $class ) {
-						$array['object']['content'] = $content;
-
-						foreach ( $array['object']['contentMap'] as $locale => $value ) {
-							$array['object']['contentMap'][ $locale ] = $content;
-						}
-					} elseif ( 'base_object' === $class ) {
-						$array['content'] = $content;
-
-						foreach ( $array['contentMap'] as $locale => $value ) {
-							$array['contentMap'][ $locale ] = $content;
-						}
-					}
-				}
 			}
 		}
 

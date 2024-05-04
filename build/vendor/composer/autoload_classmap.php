@@ -28,6 +28,7 @@ return array(
     'AddonForActivityPub\\Masterminds\\HTML5\\Serializer\\Traverser' => $vendorDir . '/masterminds/html5/src/HTML5/Serializer/Traverser.php',
     'AddonForActivityPub\\Options_Handler' => $baseDir . '/../includes/class-options-handler.php',
     'AddonForActivityPub\\Plugin' => $baseDir . '/../includes/class-plugin.php',
+    'AddonForActivityPub\\Post_Types' => $baseDir . '/../includes/class-post-types.php',
     'AddonForActivityPub\\zz\\Html\\HTMLMinify' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLMinify.php',
     'AddonForActivityPub\\zz\\Html\\HTMLNames' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLNames.php',
     'AddonForActivityPub\\zz\\Html\\HTMLToken' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLToken.php',

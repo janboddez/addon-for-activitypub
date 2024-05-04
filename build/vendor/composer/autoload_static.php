@@ -8,6 +8,7 @@ class ComposerStaticInitbfd796e1dae4745c1b71f073eb1054b9
 {
     public static $files = array (
         '757772e28a0943a9afe83def8db95bdf' => __DIR__ . '/..' . '/mf2/mf2/Mf2/Parser.php',
+        'a01125dfebcda7ec3333dcd2d57ad8f2' => __DIR__ . '/../..' . '/../includes/functions.php',
     );
 
     public static $prefixLengthsPsr4 = array (
@@ -52,6 +53,7 @@ class ComposerStaticInitbfd796e1dae4745c1b71f073eb1054b9
         'AddonForActivityPub\\Masterminds\\HTML5\\Serializer\\Traverser' => __DIR__ . '/..' . '/masterminds/html5/src/HTML5/Serializer/Traverser.php',
         'AddonForActivityPub\\Options_Handler' => __DIR__ . '/../..' . '/../includes/class-options-handler.php',
         'AddonForActivityPub\\Plugin' => __DIR__ . '/../..' . '/../includes/class-plugin.php',
+        'AddonForActivityPub\\Post_Types' => __DIR__ . '/../..' . '/../includes/class-post-types.php',
         'AddonForActivityPub\\zz\\Html\\HTMLMinify' => __DIR__ . '/..' . '/deruli/html-minifier/src/zz/Html/HTMLMinify.php',
         'AddonForActivityPub\\zz\\Html\\HTMLNames' => __DIR__ . '/..' . '/deruli/html-minifier/src/zz/Html/HTMLNames.php',
         'AddonForActivityPub\\zz\\Html\\HTMLToken' => __DIR__ . '/..' . '/deruli/html-minifier/src/zz/Html/HTMLToken.php',

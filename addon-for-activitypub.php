@@ -26,7 +26,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 // Load dependencies.
 require __DIR__ . '/build/vendor/autoload.php';
-require __DIR__ . '/includes/functions.php';
 
 $addon_for_activitypub = Plugin::get_instance();
 $addon_for_activitypub->register();

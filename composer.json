@@ -5,6 +5,7 @@
         "deruli/html-minifier": "^0.5"
     },
     "autoload": {
-        "classmap": ["includes/"]
+        "classmap": ["includes/"],
+        "files": ["includes/functions.php"]
     }
 }
