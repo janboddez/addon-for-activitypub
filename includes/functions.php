@@ -26,7 +26,7 @@ function get_options() {
  * @return \WP_Post|\WP_Comment|null Post or comment object, or null.
  */
 function get_object( $array, $class ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound
-	if ( 'activity' === $class && isset( $activitypub_array['object']['id'] ) ) {
+	if ( 'activity' === $class && isset( $array['object']['id'] ) ) {
 		// Activity.
 		$object_id = $array['object']['id'];
 	} elseif ( 'base_object' === $class && isset( $array['id'] ) ) {
@@ -55,6 +55,8 @@ function get_object( $array, $class ) { // phpcs:ignore Universal.NamingConventi
 		// Not a post or user comment, most likely. Bail.
 		return null;
 	}
+
+	return $post_or_comment;
 }
 
 /**
@@ -72,7 +74,7 @@ function parse( $html ) {
 
 	// Look for a cached result.
 	$hash = hash( 'sha256', $html );
-	$mf2  = get_transient( 'indieblocks:mf2:' . $hash );
+	$mf2  = get_transient( 'indieblocks:mf2:' . $hash ); // Re-using the IndieBlocks plugin's hash means doing less work, possibly.
 	if ( false === $mf2 ) {
 		// Nothing in cache. Parse post content.
 		$mf2 = Mf2\parse( $html );
@@ -92,7 +94,8 @@ function parse( $html ) {
  * @return \WP_Response|\WP_Error Response.
  */
 function remote_get( $url, $content_type = '' ) {
-	$response = get_transient( "addon-for-activitypub:$url:get" );
+	$hash     = hash( 'sha256', esc_url_raw( $url ) );
+	$response = get_transient( "addon-for-activitypub:$hash:get" );
 
 	if ( false !== $response ) {
 		return $response;
@@ -108,8 +111,7 @@ function remote_get( $url, $content_type = '' ) {
 	}
 
 	$response = wp_remote_get( esc_url_raw( $url ), $args );
+	set_transient( "addon-for-activitypub:$hash:get", $response, 600 ); // Cache for (up to) ten minutes.
 
-	set_transient( "addon-for-activitypub:$url:get", $response, 600 ); // Cache for (up to) ten minutes.
-
-	/** @todo: Store the reply URL in a custom field, to prevent us from fetching the remote page all the time. */
+	return $response;
 }
