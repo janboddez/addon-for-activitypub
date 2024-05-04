@@ -13,11 +13,7 @@ class Post_Types {
 	 */
 	public static function register() {
 		// Parse for microformats on save.
-		$post_types = get_post_types_by_support( 'activitypub' );
-		foreach ( $post_types as $post_type ) {
-			add_filter( "save_post_{$post_type}", array( __CLASS__, 'set_post_meta' ), 999 );
-			add_filter( "rest_after_insert_{$post_type}", array( __CLASS__, 'set_post_meta' ), 999 );
-		}
+		add_filter( 'save_post', array( __CLASS__, 'set_post_meta' ), 999 );
 
 		// If applicable, ensure the account we're targetting is mentioned.
 		add_filter( 'activitypub_extract_mentions', array( __CLASS__, 'add_mentions' ), 999, 3 );
@@ -34,11 +30,20 @@ class Post_Types {
 	public static function set_post_meta( $post ) {
 		$options = get_options();
 		if ( empty( $options['enable_replies'] ) ) {
+			error_log( '[Add-on for ActivityPub] Replies disabled.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return;
 		}
 
 		$post = get_post( $post );
+
+		$post_types = get_post_types_by_support( 'activitypub' );
+		if ( ! in_array( $post->post_type, $post_types, true ) ) {
+			error_log( '[Add-on for ActivityPub] Unsupported post type.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			return;
+		}
+
 		if ( empty( $post->post_content ) ) {
+			error_log( '[Add-on for ActivityPub] Post empty.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return;
 		}
 
@@ -58,33 +63,43 @@ class Post_Types {
 		}
 
 		if ( ! empty( $url ) ) {
+			error_log( '[Add-on for ActivityPub] Found `in-reply-to` URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			// Ensure the linked URL is actually Fediverse compatible.
 			$response     = remote_get( $url, 'application/activity+json' ); // A HEAD request doesn't work for WordPress pages.
 			$content_type = wp_remote_retrieve_header( $response, 'content-type' );
 		}
 
-		if ( ! empty( $content_type ) && 'application/activity+json' === $content_type ) {
-			// Save the URL for "Fediverse threading" purposes later on.
-			update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url', esc_url_raw( $url ) );
+		if ( ! empty( $content_type ) && is_string( $content_type ) ) {
+			$content_type = strtok( $content_type, ';' );
+			strtok( '', '' );
 
-			$json = json_decode( wp_remote_retrieve_body( $response ) );
-			if (
-				! empty( $json->attributedTo ) && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				is_string( $json->attributedTo ) && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				class_exists( '\\Activitypub\\Webfinger' ) &&
-				method_exists( \Activitypub\Webfinger::class, 'uri_to_acct' )
-			) {
-				$actor_url = $json->attributedTo; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				$handle    = \Activitypub\Webfinger::uri_to_acct( $actor_url );
+			if ( in_array( $content_type, array( 'application/json', 'application/activity+json', 'application/ld+json' ), true ) ) {
+				error_log( '[Add-on for ActivityPub] URL likely understands ActivityPub.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-				if ( is_string( $handle ) && 0 === strpos( $handle, 'acct:' ) ) {
-					$handle = substr( $handle, 5 );
-					$actor  = array();
-					$actor[ filter_var( $handle, FILTER_SANITIZE_EMAIL ) ] = esc_url_raw( $actor_url );
+				// Save the URL for "Fediverse threading" purposes later on.
+				update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url', esc_url_raw( $url ) );
+
+				$json = json_decode( wp_remote_retrieve_body( $response ) );
+				if (
+					! empty( $json->attributedTo ) && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+					is_string( $json->attributedTo ) && // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+					class_exists( '\\Activitypub\\Webfinger' ) &&
+					method_exists( \Activitypub\Webfinger::class, 'uri_to_acct' )
+				) {
+					$actor_url = $json->attributedTo; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+					$handle    = \Activitypub\Webfinger::uri_to_acct( $actor_url );
+
+					if ( is_string( $handle ) && 0 === strpos( $handle, 'acct:' ) ) {
+						$handle = substr( $handle, 5 );
+						$actor  = array();
+						$actor[ filter_var( $handle, FILTER_SANITIZE_EMAIL ) ] = esc_url_raw( $actor_url );
+					}
 				}
 			}
 
 			if ( ! empty( $actor ) ) {
+				error_log( '[Add-on for ActivityPub] Found actor, too.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
 				// Store actor so that we can mention them later on.
 				update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_actor', $actor ); // Will have to do for now.
 			} else {

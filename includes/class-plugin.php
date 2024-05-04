@@ -54,7 +54,7 @@ class Plugin {
 		$this->options_handler->register();
 
 		// Translate "IndieWeb" post types to the proper activities and objects.
-		add_action( 'init', array( Post_Types::class, 'register' ), 999 );
+		Post_Types::register();
 
 		add_filter( 'activitypub_activity_object_array', array( $this, 'filter_object' ), 999, 4 );
 
