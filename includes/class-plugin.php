@@ -175,14 +175,41 @@ class Plugin {
 		 * The "reply" stuff.
 		 */
 		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['enable_replies'] ) ) {
-			// Again, we rely on "IndieBlocks meta" ... for now.
-			$kind       = get_post_meta( $post_or_comment->ID, '_indieblocks_kind', true );
-			$linked_url = get_post_meta( $post_or_comment->ID, '_indieblocks_linked_url', true );
+			// Get the (filtered) post content.
+			$content = apply_filters( 'the_content', $post_or_comment->post_content );
 
-			if ( 'reply' === $kind && '' !== $linked_url ) {
+			// We'll want `php-mf` to parse it as a `h-entry`.
+			if ( ! preg_match( '~ class=("|\')([^"\']*?)e-content([^"\']*?)("|\')~', $content ) ) {
+				$content = '<div class="e-content">' . $content . '</div>';
+			}
+			$content = '<div class="h-entry">' . $content . '</div>';
+
+			// Look for a cached result.
+			$hash = hash( 'sha256', $content );
+			$mf2  = get_transient( 'indieblocks:mf2:' . $hash );
+
+			if ( false === $mf2 ) {
+				// Nothing in cache. Parse post.
+				$mf2 = Mf2\parse( $content );
+				set_transient( 'indieblocks:mf2:' . $hash, $mf2, 1800 ); // Cache for half an hour.
+			}
+
+			// Look for an `in-reply-to` URL.
+			if ( ! empty( $mf2['items'][0]['properties'] ) ) {
+				$props = $mf2['items'][0]['properties'];
+
+				if ( ! empty( $props['in-reply-to'][0] ) && filter_var( $props['in-reply-to'][0], FILTER_VALIDATE_URL ) ) {
+					$reply_url = $props['in-reply-to'][0];
+				} elseif ( ! empty( $props['in-reply-to'][0]['value'] ) && filter_var( $props['in-reply-to'][0]['value'], FILTER_VALIDATE_URL ) ) {
+					$reply_url = $props['in-reply-to'][0]['value'];
+				}
+			}
+
+			if ( ! empty( $reply_url ) ) {
 				error_log( '[Add-on for ActivityPub] Got a reply.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
-				$response     = remote_get( $linked_url, 'application/activity+json' );
+				// Ensure the linked URL is actually Fediverse compatible.
+				$response     = remote_get( $reply_url, 'application/activity+json' ); // A HEAD request doesn't work for WordPress pages.
 				$content_type = wp_remote_retrieve_header( $response, 'content-type' );
 			}
 
@@ -191,20 +218,20 @@ class Plugin {
 
 				// Remote page seems to be Fediverse compatible.
 				if ( 'activity' === $class ) {
-					$array['object']['inReplyTo'] = $linked_url;
+					$array['object']['inReplyTo'] = $reply_url;
 				} elseif ( 'base_object' === $class ) {
-					$array['inReplyTo'] = $linked_url;
+					$array['inReplyTo'] = $reply_url;
 				}
 
 				// Now, trim any reply context off the post content.
-				if ( preg_match( '~<div class="e-content">.+?</div>~s', $post_or_comment->post_content, $content ) ) {
+				if ( preg_match( '~<div class="e-content">.+?</div>~s', $content, $match ) ) {
 					$copy               = clone $post_or_comment;
-					$copy->post_content = $content[0]; // The `e-content` only, without reply context.
+					$copy->post_content = $match[0]; // The `e-content` only, without reply context (if any).
 
 					// Regenerate "ActivityPub content" using the "slimmed down"
-					// post content. We ourselves use the "original"post, hence
-					// the need to instead pass copy with modified content.
-					$content = apply_filters( 'activitypub_the_content', $content[0], $copy );
+					// post content. We ourselves use the "original" post, hence
+					// the need to pass a copy with modified content.
+					$content = apply_filters( 'activitypub_the_content', $match[0], $copy );
 
 					if ( 'activity' === $class ) {
 						$array['object']['content'] = $content;
