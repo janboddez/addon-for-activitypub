@@ -54,23 +54,23 @@ class Plugin {
 		$this->options_handler->register();
 
 		// Translate "IndieWeb" post types to the proper activities and objects.
-		Post_Types::register();
+		add_action( 'init', array( Post_Types::class, 'register' ), 999 );
 
-		add_filter( 'activitypub_activity_object_array', array( $this, 'filter_object' ), 99, 4 );
+		add_filter( 'activitypub_activity_object_array', array( $this, 'filter_object' ), 999, 4 );
 
 		if ( ! empty( $options['edit_notifications'] ) ) {
-			add_action( 'activitypub_handled_update', array( $this, 'send_edit_notification' ), 99, 4 );
+			add_action( 'activitypub_handled_update', array( $this, 'send_edit_notification' ), 999, 4 );
 		}
 
 		if ( ! empty( $options['cache_avatars'] ) ) {
-			add_filter( 'preprocess_comment', array( $this, 'store_avatar' ), 99 );
+			add_filter( 'preprocess_comment', array( $this, 'store_avatar' ), 999 );
 		}
 
 		if ( ! empty( $options['proxy_avatars'] ) ) {
-			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 99, 3 );
+			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 999, 3 );
 		}
 
-		add_filter( 'activitypub_the_content', array( $this, 'filter_content' ), 99, 2 );
+		add_filter( 'activitypub_the_content', array( $this, 'filter_content' ), 999, 2 );
 		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 32, 3 );
 	}
 
@@ -358,13 +358,10 @@ class Plugin {
 
 		if ( 'trash' === $new_status ) {
 			// Leave deletes alone.
-			error_log( '[Add-on for ActivityPub] Deleting. Bail.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return;
 		}
 
 		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
-			// Do nothing.
-			error_log( '[Add-on for ActivityPub] Not a REST request.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return;
 		}
 
@@ -411,15 +408,12 @@ class Plugin {
 		$status = get_post_meta( $post->ID, 'activitypub_status', true );
 		if ( 'federated' === $status ) {
 			// Post was federated previously.
-			error_log( '[Add-on for ActivityPub] Updating!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$type = 'Update';
 		} else {
-			error_log( '[Add-on for ActivityPub] Creating!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			$type = 'Create';
 		}
 
 		if ( empty( $type ) ) {
-			error_log( '[Add-on for ActivityPub] Neither creating nor updating!' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			return;
 		}
 
@@ -427,8 +421,6 @@ class Plugin {
 		$args = array( $post->ID, $type );
 
 		if ( false === wp_next_scheduled( $hook, $args ) ) {
-			error_log( '[Add-on for ActivityPub] Scheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-
 			if ( function_exists( '\\Activitypub\\set_wp_object_state' ) ) {
 				\Activitypub\set_wp_object_state( $post, 'federate' );
 			}
