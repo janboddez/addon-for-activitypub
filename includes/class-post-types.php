@@ -24,13 +24,11 @@ class Post_Types {
 	public static function set_post_meta( $post ) {
 		$options = get_options();
 		if ( empty( $options['enable_replies'] ) ) {
-			error_log( 'Replies disabled.' );
 			return;
 		}
 
 		$post = get_post( $post );
 		if ( empty( $post->post_content ) ) {
-			error_log( 'No content.' );
 			return;
 		}
 
@@ -56,7 +54,28 @@ class Post_Types {
 		}
 
 		if ( ! empty( $content_type ) && 'application/activity+json' === $content_type ) {
-			update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url', $url );
+			// Save the URL for "Fediverse threading" purposes later on.
+			update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url', esc_url_raw( $url ) );
+
+			$json = json_decode( wp_remote_retrieve_body( $response ) );
+			if (
+				! empty( $json->attributedTo ) &&
+				is_string( $json->attributedTo ) &&
+				class_exists( '\\Activitypub\\Webfinger' ) &&
+				method_exists( \Activitypub\Webfinger::class, 'uri_to_acct' )
+			) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				$actor_url = $json->attributedTo; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				$handle    = \Activitypub\Webfinger::uri_to_acct( $actor_url );
+
+				if ( is_string( $handle ) && 0 === strpos( $handle, 'acct:' ) ) {
+					$handle = substr( $handle, 5 );
+					$actor  = array();
+					$actor[ filter_var( $handle, FILTER_SANITIZE_EMAIL ) ] = esc_url_raw( $actor_url );
+					update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_actor', $actor ); // Will have to do for now.
+				} else {
+					delete_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_actor' );
+				}
+			}
 		} else {
 			delete_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url' );
 		}
@@ -85,7 +104,8 @@ class Post_Types {
 		 * @todo: Parse post content on save instead when being fetched, to save on all this overhead.
 		 */
 		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['enable_replies'] ) ) {
-			$url = get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_in_reply_to_url', true );
+			$url   = get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_in_reply_to_url', true );
+			$actor = get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_in_reply_to_actor', true );
 		}
 
 		if ( ! empty( $url ) ) {
@@ -119,6 +139,73 @@ class Post_Types {
 
 					foreach ( $array['contentMap'] as $locale => $value ) {
 						$array['contentMap'][ $locale ] = $content;
+					}
+				}
+			}
+
+			// Add mentions. Note: does not yet do anything, presumably because
+			// all this is done after the inboxes to send to are established
+			// (and the mention thus ... never arrives).
+			// @todo: set the `cc` earlier on!
+			if ( ! empty( $actor ) ) {
+				// Update `tag` and `cc` properties.
+				if ( 'activity' === $class ) {
+					if ( empty( $array['object']['tag'] ) ) {
+						$array['object']['tag'] = array(
+							array(
+								'type' => 'Mention',
+								'href' => reset( $actor ),
+								'name' => '@' . array_key_first( $actor ),
+							),
+						);
+					} else {
+						$array['object']['tag'] = array_unique(
+							array_merge(
+								$array['object']['tag'],
+								array(
+									array(
+										'type' => 'Mention',
+										'href' => reset( $actor ),
+										'name' => '@' . array_key_first( $actor ),
+									),
+								)
+							)
+						);
+					}
+
+					if ( empty( $array['object']['cc'] ) ) {
+						$array['object']['cc'] = array_values( $actor );
+					} else {
+						$array['object']['cc'] = array_unique( array_merge( $array['object']['cc'], array_values( $actor ) ) );
+					}
+				} elseif ( 'base_object' === $class ) {
+					if ( empty( $array['tag'] ) ) {
+						$array['tag'] = array(
+							array(
+								'type' => 'Mention',
+								'href' => reset( $actor ),
+								'name' => '@' . array_key_first( $actor ),
+							),
+						);
+					} else {
+						$array['tag'] = array_unique(
+							array_merge(
+								$array['tag'],
+								array(
+									array(
+										'type' => 'Mention',
+										'href' => reset( $actor ),
+										'name' => '@' . array_key_first( $actor ),
+									),
+								)
+							)
+						);
+					}
+
+					if ( empty( $array['cc'] ) ) {
+						$array['cc'] = array_values( $actor );
+					} else {
+						$array['cc'] = array_unique( array_merge( $array['cc'], array_values( $actor ) ) );
 					}
 				}
 			}
