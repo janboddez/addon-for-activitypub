@@ -115,8 +115,13 @@ class Plugin {
 		 */
 		$is_unlisted = false;
 
-		if ( $post_or_comment instanceof \WP_Post && ! empty( $options['unlisted'] ) && has_category( 'rss-club', $post_or_comment->ID ) ) { // @todo: Make this configurable. And, eventually, also exlude these from archives and the like?
-			// Show "RSS-only" posts as unlisted. We need to make this smarter.
+		if (
+			$post_or_comment instanceof \WP_Post &&
+			isset( $options['unlisted_cat'] ) && '' !== $options['unlisted_cat'] &&
+			has_category( $options['unlisted_cat'], $post_or_comment->ID )
+		) {
+			// Show posts in a certain category as "unlisted." If somehow that's
+			// not enough, there's the filter below.
 			$is_unlisted = true;
 		} elseif ( $post_or_comment instanceof \WP_Comment && ! empty( $options['unlisted_comments'] ) ) {
 			// "Unlist" all comments.

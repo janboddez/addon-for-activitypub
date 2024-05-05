@@ -12,9 +12,9 @@ class Options_Handler {
 	 * Plugin option schema.
 	 */
 	const SCHEMA = array(
-		'unlisted'           => array(
-			'type'    => 'boolean',
-			'default' => false,
+		'unlisted_cat'       => array(
+			'type'    => 'string',
+			'default' => '',
 		),
 		'unlisted_comments'  => array(
 			'type'    => 'boolean',
@@ -124,12 +124,10 @@ class Options_Handler {
 	 * @return array           Options to be stored.
 	 */
 	public function sanitize_settings( $settings ) {
-		// @todo: What about potential (future) conflicts with Gutenberg here?
-		// We can try to detect whether the request is coming from a REST route
-		// and create a new `case` that sanitizes all options.
-
 		$options = array(
-			'unlisted'           => isset( $settings['unlisted'] ) ? true : false,
+			'unlisted_cat'       => isset( $settings['unlisted_cat'] ) && '' !== $settings['unlisted_cat']
+				? sanitize_title( $settings['unlisted_cat'] )
+				: '',
 			'unlisted_comments'  => isset( $settings['unlisted_comments'] ) ? true : false,
 			'edit_notifications' => isset( $settings['edit_notifications'] ) ? true : false,
 			'limit_updates'      => isset( $settings['limit_updates'] ) ? true : false,
@@ -157,9 +155,35 @@ class Options_Handler {
 				?>
 				<table class="form-table">
 					<tr valign="top">
-						<th scope="row"><?php esc_html_e( '“Unlisted” Statuses', 'addon-for-activitypub' ); ?></th>
-						<td><label><input type="checkbox" name="addon_for_activitypub_settings[unlisted]" value="1" <?php checked( ! empty( $this->options['unlisted'] ) ); ?>/> <?php esc_html_e( 'Enable “unlisted” statuses', 'addon-for-activitypub' ); ?></label>
-						<p class="description"><?php esc_html_e( 'Federate certain (!) posts as “unlisted.”', 'addon-for-activitypub' ); ?></p></td>
+						<th scope="row"><label for="addon_for_activitypub_settings[unlisted_cat]"><?php esc_html_e( '“Unlisted” Category', 'addon-for-activitypub' ); ?></label></th>
+						<td>
+							<select name="addon_for_activitypub_settings[unlisted_cat]" id="addon_for_activitypub_settings[unlisted_cat]">
+								<option value="">&nbsp;</option>
+								<?php
+								$categories = get_categories(
+									array(
+										'orderby'    => 'name',
+										'order'      => 'ASC',
+										'hide_empty' => false,
+									)
+								);
+
+								if ( ! empty( $categories ) ) :
+									foreach ( $categories as $category ) :
+										?>
+										<option value="<?php echo esc_attr( $category->slug ); ?>" <?php ( ! empty( $this->options['unlisted_cat'] ) ? selected( $category->slug, $this->options['unlisted_cat'] ) : '' ); ?>>
+											<?php echo esc_html( $category->name ); ?>
+										</option>
+										<?php
+									endforeach;
+								endif;
+								?>
+							</select>
+							<p class="description">
+								<?php _e( 'Posts (of any type) in this category will appear “unlisted” on platforms like Mastodon. (Blank means all posts will be “public.”)', 'addon-for-activitypub' ); // phpcs:ignore WordPress.Security.EscapeOutput.UnsafePrintingFunction ?><br />
+								<?php _e( 'Alternatively, use the <code>addon_for_activitypub_is_unlisted</code> filter.', 'addon-for-activitypub' ); // phpcs:ignore WordPress.Security.EscapeOutput.UnsafePrintingFunction ?>
+							</p>
+						</td>
 					</tr>
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( '“Unlisted” Comments', 'addon-for-activitypub' ); ?></th>
@@ -171,11 +195,13 @@ class Options_Handler {
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[edit_notifications]" value="1" <?php checked( ! empty( $this->options['edit_notifications'] ) ); ?>/> <?php esc_html_e( 'Enable “edit” notifications', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Receive an email notification when a (remote) comment gets edited.', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
+					<!--
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( 'Limit Updates', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[limit_updates]" value="1" <?php checked( ! empty( $this->options['limit_updates'] ) ); ?>/> <?php esc_html_e( 'Limit updates', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( '(Experimental) Attempts to “federate” only “meaningful” updates.', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
+					//-->
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( 'Enable “Reply Posts”', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_replies]" value="1" <?php checked( ! empty( $this->options['enable_replies'] ) ); ?>/> <?php esc_html_e( 'Enable “reply posts”', 'addon-for-activitypub' ); ?></label>
