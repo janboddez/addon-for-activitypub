@@ -190,7 +190,7 @@ class Post_Types {
 		}
 
 		foreach ( $actor as $name => $href ) {
-			if ( 0 !== strpos( $name, 'http' ) ) {
+			if ( ! preg_match( '~^https?://~', $name ) ) {
 				$name = "@{$name}";
 			}
 			$mentions[ $name ] = $href;
