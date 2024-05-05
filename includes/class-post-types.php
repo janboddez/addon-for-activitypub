@@ -82,6 +82,7 @@ class Post_Types {
 		if ( empty( $content_type ) || ! in_array( $content_type, array( 'application/json', 'application/activity+json', 'application/ld+json' ), true ) ) {
 			// Note: Mastodon will return `application/json` (and an error) when
 			// "Authorized Fetch" is enabled.
+			/** @link: https://docs.joinmastodon.org/admin/config/#authorized_fetch */
 			delete_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url' );
 			delete_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_actor' );
 			return;
@@ -132,7 +133,11 @@ class Post_Types {
 			$handle = \Activitypub\Webfinger::uri_to_acct( $actor_url );
 			if ( is_string( $handle ) && 0 === strpos( $handle, 'acct:' ) ) {
 				// Whatever "actor URL" we had, it seems to support Webfinger.
-				$handle = substr( $handle, 5 );
+				$handle = filter_var( substr( $handle, 5 ), FILTER_SANITIZE_EMAIL );
+			} elseif ( ! empty( $json->attributedTo ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				// Might not support "reverse Webfinger," but should really be a
+				// Fediverse account. Fallback to URL.
+				$handle = esc_url_raw( $actor_url );
 			}
 		} elseif ( ! empty( $handle ) && empty( $actor_url ) && method_exists( \Activitypub\Webfinger::class, 'resolve' ) ) {
 			// We got a `@user@example.org` handle but no URL.
@@ -145,8 +150,8 @@ class Post_Types {
 			return;
 		}
 
-		$actor = array();
-		$actor[ filter_var( $handle, FILTER_SANITIZE_EMAIL ) ] = esc_url_raw( $actor_url );
+		$actor            = array();
+		$actor[ $handle ] = esc_url_raw( $actor_url );
 
 		update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url', esc_url_raw( $url ) );
 		update_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_actor', $actor );
@@ -185,7 +190,10 @@ class Post_Types {
 		}
 
 		foreach ( $actor as $name => $href ) {
-			$mentions[ '@' . $name ] = $href;
+			if ( 0 !== strpos( $name, 'http' ) ) {
+				$name = "@{$name}";
+			}
+			$mentions[ $name ] = $href;
 			break;
 		}
 
