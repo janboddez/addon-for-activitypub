@@ -70,7 +70,9 @@ function parse( $html ) {
 	if ( ! preg_match( '~ class=("|\')([^"\']*?)e-content([^"\']*?)("|\')~', $html ) ) {
 		$html = '<div class="e-content">' . $html . '</div>';
 	}
-	$html = '<div class="h-entry">' . $html . '</div>';
+	if ( ! preg_match( '~ class=("|\')([^"\']*?)h-entry([^"\']*?)("|\')~', $html ) ) {
+		$html = '<div class="h-entry">' . $html . '</div>';
+	}
 
 	// Look for a cached result.
 	$hash = hash( 'sha256', $html );
@@ -78,7 +80,7 @@ function parse( $html ) {
 	if ( false === $mf2 ) {
 		// Nothing in cache. Parse post content.
 		$mf2 = Mf2\parse( $html );
-		set_transient( 'indieblocks:mf2:' . $hash, $mf2, 1800 ); // Cache for half an hour.
+		set_transient( 'indieblocks:mf2:' . $hash, $mf2, HOUR_IN_SECONDS / 2 );
 	}
 
 	return $mf2;
@@ -87,7 +89,9 @@ function parse( $html ) {
 /**
  * Wrapper around `wp_remote_get()`.
  *
- * Unfortunately, the ActivityPub doesn't return JSON for head requests ...
+ * Unfortunately, the ActivityPub plugin doesn't return JSON for HEAD requests.
+ * On top of that, Mastodon may not return Activity Streams JSON for
+ * unauthenticated requests.
  *
  * @param  string $url            URL.
  * @param  string $content_type   Request content type.

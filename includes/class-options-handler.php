@@ -32,10 +32,6 @@ class Options_Handler {
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'thread_replies'     => array(
-			'type'    => 'boolean',
-			'default' => false,
-		),
 		'cache_avatars'      => array(
 			'type'    => 'boolean',
 			'default' => false,
@@ -137,7 +133,6 @@ class Options_Handler {
 			'unlisted_comments'  => isset( $settings['unlisted_comments'] ) ? true : false,
 			'edit_notifications' => isset( $settings['edit_notifications'] ) ? true : false,
 			'limit_updates'      => isset( $settings['limit_updates'] ) ? true : false,
-			'thread_replies'     => isset( $settings['thread_replies'] ) ? true : false,
 			'enable_replies'     => isset( $settings['enable_replies'] ) ? true : false,
 			'cache_avatars'      => isset( $settings['cache_avatars'] ) ? true : false,
 			'proxy_avatars'      => isset( $settings['proxy_avatars'] ) ? true : false,
@@ -186,21 +181,22 @@ class Options_Handler {
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_replies]" value="1" <?php checked( ! empty( $this->options['enable_replies'] ) ); ?>/> <?php esc_html_e( 'Enable “reply posts”', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( '(Experimental) Reply not just to comments, but to any post in the Fediverse.', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
-					<tr valign="top">
-						<th scope="row"><?php esc_html_e( 'Thread “Replies-to-self”', 'addon-for-activitypub' ); ?></th>
-						<td><label><input type="checkbox" name="addon_for_activitypub_settings[thread_replies]" value="1" <?php checked( ! empty( $this->options['thread_replies'] ) ); ?>/> <?php esc_html_e( 'Thread replies-to-self', 'addon-for-activitypub' ); ?></label>
-						<p class="description"><?php esc_html_e( '(Experimental) Attempts to correctly “thread” federated replies to, well, yourself.', 'addon-for-activitypub' ); ?></p></td>
-					</tr>
-					<tr valign="top">
-						<th scope="row"><?php esc_html_e( '“Cache” Avatars', 'addon-for-activitypub' ); ?></th>
-						<td><label><input type="checkbox" name="addon_for_activitypub_settings[cache_avatars]" value="1" <?php checked( ! empty( $this->options['cache_avatars'] ) ); ?>/> <?php esc_html_e( '“Cache” avatars', 'addon-for-activitypub' ); ?></label>
-						<p class="description"><?php esc_html_e( '(Experimental) Store avatars locally for at least a month.', 'addon-for-activitypub' ); ?></p></td>
-					</tr>
-					<tr valign="top">
-						<th scope="row"><?php esc_html_e( '“Proxy” Avatars', 'addon-for-activitypub' ); ?></th>
-						<td><label><input type="checkbox" name="addon_for_activitypub_settings[proxy_avatars]" value="1" <?php checked( ! empty( $this->options['proxy_avatars'] ) ); ?>/> <?php esc_html_e( '“Proxy” avatars', 'addon-for-activitypub' ); ?></label>
-						<p class="description"><?php esc_html_e( '(Experimental) Alternatively, serve remote avatars from this site’s domain.', 'addon-for-activitypub' ); ?></p></td>
-					</tr>
+					<?php if ( function_exists( '\\IndieBlocks\\store_image' ) ) : ?>
+						<tr valign="top">
+							<th scope="row"><?php esc_html_e( '“Cache” Avatars', 'addon-for-activitypub' ); ?></th>
+							<td><label><input type="checkbox" name="addon_for_activitypub_settings[cache_avatars]" value="1" <?php checked( ! empty( $this->options['cache_avatars'] ) ); ?>/> <?php esc_html_e( '“Cache” avatars', 'addon-for-activitypub' ); ?></label>
+							<p class="description"><?php esc_html_e( '(Experimental) Store avatars locally for at least a month.', 'addon-for-activitypub' ); ?></p></td>
+						</tr>
+					<?php endif; ?>
+
+					<?php if ( function_exists( '\\IndieBlocks\\proxy_image' ) ) : ?>
+						<tr valign="top">
+							<th scope="row"><?php esc_html_e( '“Proxy” Avatars', 'addon-for-activitypub' ); ?></th>
+							<td><label><input type="checkbox" name="addon_for_activitypub_settings[proxy_avatars]" value="1" <?php checked( ! empty( $this->options['proxy_avatars'] ) ); ?>/> <?php esc_html_e( '“Proxy” avatars', 'addon-for-activitypub' ); ?></label>
+							<p class="description"><?php esc_html_e( '(Experimental) Alternatively, serve remote avatars from this site’s domain.', 'addon-for-activitypub' ); ?></p></td>
+						</tr>
+					<?php endif; ?>
+
 				</table>
 				<p class="submit"><?php submit_button( __( 'Save Changes' ), 'primary', 'submit', false ); ?></p>
 			</form>
