@@ -33,20 +33,10 @@ Here’s one example called `content-indieblocks_note.php`, for a custom post ty
 <?php
 
 if ( ! defined( 'ABSPATH' ) ) {
-	exit;
+  exit;
 }
+?>
 
-$content = apply_filters( 'the_content', $post->post_content );
-
-$shortlink = wp_get_shortlink( $post->ID );
-if ( ! empty( $shortlink ) ) {
-	$permalink = $shortlink;
-} else {
-	$permalink = get_permalink( $post );
-}
-
-// Since this a note, append only a permalink.
-$content .= '<p>(<a href="' . esc_url( $permalink ) . '">' . esc_html( $permalink ) . '</a>)</p>';
-
-echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+<?php echo apply_filters( 'the_content', $post->post_content ); ?>
+<p><a href="<?php echo esc_url( get_permalink( $post ) ); ?>"><?php echo esc_html( get_permalink( $post ) ); ?></a></p>
 ```
