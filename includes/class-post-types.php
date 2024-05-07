@@ -20,7 +20,15 @@ class Post_Types {
 		add_filter( 'activitypub_extract_mentions', array( __CLASS__, 'add_mentions' ), 999, 3 );
 
 		// Add `inReplyTo` URL.
-		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'filter_object' ), 999, 4 );
+		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'add_in_reply_to_url' ), 999, 4 );
+
+		// "Repost" to boost.
+		/** @todo: Disable fetching "reposts"? */
+		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_announce' ), 999, 4 );
+		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_undo_announce' ), 999, 4 );
+
+		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 10, 4 );
+		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 );
 	}
 
 	/**
@@ -116,7 +124,7 @@ class Post_Types {
 		}
 
 		if ( empty( $handle ) && empty( $actor_url ) ) {
-			// We need either an "handle" or URL.
+			// We need either a "handle" or URL.
 			delete_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_url' );
 			delete_post_meta( $post->ID, '_addon_for_activitypub_in_reply_to_actor' );
 			return;
@@ -159,6 +167,138 @@ class Post_Types {
 	}
 
 	/**
+	 * Stores a Fediverse-compatible `repost-of` URL, if any.
+	 *
+	 * Looks for microformats and a `repost-of` URL. Then tries to find out
+	 * if it happens to be a "Fediverse" URL.
+	 *
+	 * @param int|\WP_Post $post Post ID or object, depending on where the request originated.
+	 */
+	public static function store_repost_of_url( $post ) {
+		$options = get_options();
+		if ( empty( $options['enable_reposts'] ) ) {
+			return;
+		}
+
+		$post = get_post( $post );
+
+		$post_types = get_post_types_by_support( 'activitypub' );
+		if ( ! in_array( $post->post_type, $post_types, true ) ) {
+			return;
+		}
+
+		// Apply content filters.
+		$content = apply_filters( 'the_content', $post->post_content );
+		// Look for microformats.
+		$mf2 = parse( $content );
+		// Look for an `in-reply-to` URL.
+		$props = ! empty( $mf2['items'][0]['properties'] )
+			? $mf2['items'][0]['properties']
+			: array();
+
+		if ( ! empty( $props['repost-of'][0] ) && filter_var( $props['repost-of'][0], FILTER_VALIDATE_URL ) ) {
+			$url = $props['repost-of'][0];
+		} elseif ( ! empty( $props['repost-of'][0]['value'] ) && filter_var( $props['repost-of'][0]['value'], FILTER_VALIDATE_URL ) ) {
+			$url = $props['repost-of'][0]['value'];
+		}
+
+		// If we have an author name, keep it around, too.
+		if ( ! empty( $props['repost-of'][0]['properties']['author'][0] ) && is_string( $props['repost-of'][0]['properties']['author'][0] ) ) {
+			$author = $props['repost-of'][0]['properties']['author'][0];
+		}
+
+		if ( empty( $url ) ) {
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_url' );
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_actor' );
+			return;
+		}
+
+		error_log( '[Add-on for ActivityPub] Found `repost-of` URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+
+		// Ensure the linked URL is actually Fediverse compatible.
+		$response     = remote_get( $url, 'application/activity+json' ); // WordPress would return HTML in response to a HEAD request.
+		$content_type = wp_remote_retrieve_header( $response, 'content-type' );
+		if ( ! empty( $content_type ) && is_string( $content_type ) ) {
+			$content_type = strtok( $content_type, ';' );
+			strtok( '', '' );
+		}
+
+		if ( empty( $content_type ) || ! in_array( $content_type, array( 'application/json', 'application/activity+json', 'application/ld+json' ), true ) ) {
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_url' );
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_actor' );
+			return;
+		}
+
+		$json = json_decode( wp_remote_retrieve_body( $response ) );
+
+		if ( ! empty( $json->attributedTo ) && is_string( $json->attributedTo ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			// This is the type of JSON we want to see. This would be a Fediverse profile.
+			error_log( '[Add-on for ActivityPub] Found an author URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			$actor_url = $json->attributedTo; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		} elseif ( ! empty( $author ) && preg_match( '~^@([^@]+?@[^@]+?)$~', $author, $match ) && filter_var( $match[1], FILTER_VALIDATE_EMAIL ) ) {
+			// Purely based off the author "handle," we could be replying to a Fediverse account here.
+			error_log( '[Add-on for ActivityPub] Found something that sure looks like a "Fediverse handle."' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+			$handle = $match[1];
+		} else {
+			// Could *still* be a Fediverse instance that has "Authorized Fetch" enabled.
+			$path = wp_parse_url( $url, PHP_URL_PATH );
+			if ( 0 === strpos( ltrim( $path, '/' ), '@' ) ) {
+				error_log( '[Add-on for ActivityPub] Found a possible Mastodon URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+				// Sure looks like a Mastodon URL. It's impossible to do this for all URLs, though.
+				$path = strtok( $path, '/' );
+				strtok( '', '' );
+
+				$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
+				$host   = wp_parse_url( $url, PHP_URL_HOST );
+
+				$actor_url = "$scheme://$host/$path";
+			}
+		}
+
+		if ( empty( $handle ) && empty( $actor_url ) ) {
+			// We need either a "handle" or URL.
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_url' );
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_actor' );
+			return;
+		}
+
+		if ( ! class_exists( '\\Activitypub\\Webfinger' ) ) {
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_url' );
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_actor' );
+			return;
+		}
+
+		if ( empty( $handle ) && ! empty( $actor_url ) && method_exists( \Activitypub\Webfinger::class, 'uri_to_acct' ) ) {
+			// We got a URL, either from an ActivityPub object or because it
+			// looked like a Mastodon one, but no `acct`.
+			$handle = \Activitypub\Webfinger::uri_to_acct( $actor_url );
+			if ( is_string( $handle ) && 0 === strpos( $handle, 'acct:' ) ) {
+				// Whatever "actor URL" we had, it seems to support Webfinger.
+				$handle = filter_var( substr( $handle, 5 ), FILTER_SANITIZE_EMAIL );
+			} elseif ( ! empty( $json->attributedTo ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+				// Might not support "reverse Webfinger," but should really be a
+				// Fediverse account. Fallback to URL.
+				$handle = esc_url_raw( $actor_url );
+			}
+		} elseif ( ! empty( $handle ) && empty( $actor_url ) && method_exists( \Activitypub\Webfinger::class, 'resolve' ) ) {
+			// We got a `@user@example.org` handle but no URL.
+			$actor_url = \Activitypub\Webfinger::resolve( $handle );
+		}
+
+		if ( empty( $handle ) || is_wp_error( $handle ) || empty( $actor_url ) || is_wp_error( $actor_url ) ) {
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_url' );
+			delete_post_meta( $post->ID, '_addon_for_activitypub_repost_of_actor' );
+			return;
+		}
+
+		$actor            = array();
+		$actor[ $handle ] = esc_url_raw( $actor_url );
+
+		update_post_meta( $post->ID, '_addon_for_activitypub_repost_of_url', esc_url_raw( $url ) );
+		update_post_meta( $post->ID, '_addon_for_activitypub_repost_of_actor', $actor );
+	}
+
+	/**
 	 * Adds a mention to posts we think are replies.
 	 *
 	 * We want the remote post's author to know about our reply. This ensures a
@@ -171,7 +311,7 @@ class Post_Types {
 	 */
 	public static function add_mentions( $mentions, $post_content, $wp_object ) {
 		$options = get_options();
-		if ( empty( $options['enable_replies'] ) ) {
+		if ( empty( $options['enable_replies'] ) && empty( $options['enable_reposts'] ) ) {
 			return $mentions;
 		}
 
@@ -179,30 +319,34 @@ class Post_Types {
 			return $mentions;
 		}
 
-		$url   = get_post_meta( $wp_object->ID, '_addon_for_activitypub_in_reply_to_url', true );
-		$actor = get_post_meta( $wp_object->ID, '_addon_for_activitypub_in_reply_to_actor', true );
+		$in_reply_to_actor = get_post_meta( $wp_object->ID, '_addon_for_activitypub_in_reply_to_actor', true );
+		$repost_of_actor   = get_post_meta( $wp_object->ID, '_addon_for_activitypub_repost_of_actor', true );
 
-		if ( empty( $url ) || empty( $actor ) ) {
-			return $mentions;
-		}
-
-		if ( ! is_array( $actor ) ) {
-			return $mentions;
-		}
-
-		foreach ( $actor as $name => $href ) {
-			if ( ! preg_match( '~^https?://~', $name ) ) {
-				$name = "@{$name}";
+		if ( ! empty( $in_reply_to_actor ) && is_array( $in_reply_to_actor ) ) {
+			foreach ( $in_reply_to_actor as $name => $href ) {
+				if ( ! preg_match( '~^https?://~', $name ) ) {
+					$name = "@{$name}";
+				}
+				$mentions[ $name ] = $href;
+				break;
 			}
-			$mentions[ $name ] = $href;
-			break;
+		}
+
+		if ( ! empty( $repost_of_actor ) && is_array( $repost_of_actor ) ) {
+			foreach ( $repost_of_actor as $name => $href ) {
+				if ( ! preg_match( '~^https?://~', $name ) ) {
+					$name = "@{$name}";
+				}
+				$mentions[ $name ] = $href;
+				break;
+			}
 		}
 
 		return array_unique( $mentions );
 	}
 
 	/**
-	 * Filters ActivityPub objects before they're rendered or federated.
+	 * Transforms a repost into an "Announce" activity.
 	 *
 	 * @param  array                             $array  Activity or object (array).
 	 * @param  string                            $class  Class name.
@@ -210,7 +354,100 @@ class Post_Types {
 	 * @param  \Activitypub\Activity\Base_Object $object Activity or object (object).
 	 * @return array                                     The updated array.
 	 */
-	public static function filter_object( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+	public static function transform_to_announce( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		$options = get_options();
+		if ( empty( $options['enable_reposts'] ) ) {
+			return $array;
+		}
+
+		if ( 'activity' !== $class ) {
+			return $array;
+		}
+
+		if ( ! isset( $array['type'] ) ) {
+			return $array;
+		}
+
+		if ( ! in_array( $array['type'], array( 'Create', 'Update' ), true ) ) {
+			return $array;
+		}
+
+		$post_or_comment = get_object( $array, $class ); // Could probably also use `$id` or even `$object`, but this works.
+		if ( ! $post_or_comment ) {
+			return $array;
+		}
+
+		if ( ! $post_or_comment instanceof \WP_Post ) {
+			return $array;
+		}
+
+		$url = get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_repost_of_url', true );
+		if ( empty( $url ) ) {
+			return $array;
+		}
+
+		$array['type']   = 'Announce';
+		$array['object'] = esc_url_raw( $url );
+
+		update_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', $array );
+
+		return $array;
+	}
+
+	/**
+	 * Transforms the deletion of a repost into an "Undo (Announce)" activity.
+	 *
+	 * @param  array                             $array  Activity or object (array).
+	 * @param  string                            $class  Class name.
+	 * @param  string                            $id     Activity or object ID.
+	 * @param  \Activitypub\Activity\Base_Object $object Activity or object (object).
+	 * @return array                                     The updated array.
+	 */
+	public static function transform_to_undo_announce( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+		if ( 'activity' !== $class ) {
+			return $array;
+		}
+
+		if ( ! isset( $array['type'] ) ) {
+			return $array;
+		}
+
+		if ( 'Delete' !== $array['type'] ) {
+			return $array;
+		}
+
+		$post_or_comment = get_object( $array, $class ); // Could probably also use `$id` or even `$object`, but this works.
+		if ( ! $post_or_comment ) {
+			return $array;
+		}
+
+		if ( ! $post_or_comment instanceof \WP_Post ) {
+			return $array;
+		}
+
+		$announce = get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', true );
+		if ( empty( $announce ) ) {
+			return $array;
+		}
+
+		$array['type']   = 'Undo'; // Rather than Delete.
+		$array['object'] = $announce;
+
+		update_post_meta( $post_or_comment->ID, '_addon_for_activitypub_undo_announce_activity', $array );
+
+		return $array;
+	}
+
+	/**
+	 * Adds the `inReplyTo` property to reply posts.
+	 *
+	 * @param  array                             $array  Activity or object (array).
+	 * @param  string                            $class  Class name.
+	 * @param  string                            $id     Activity or object ID.
+	 * @param  \Activitypub\Activity\Base_Object $object Activity or object (object).
+	 * @return array                                     The updated array.
+	 */
+	public static function add_in_reply_to_url( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		$post_or_comment = get_object( $array, $class ); // Could probably also use `$id` or even `$object`, but this works.
 		if ( ! $post_or_comment ) {
 			return $array;
@@ -259,5 +496,62 @@ class Post_Types {
 		}
 
 		return $array;
+	}
+
+	/**
+	 * Disables content negotiation for reposts.
+	 *
+	 * Reposts will still appear in outboxes as Announce activities.
+	 *
+	 * @param  string $template The path of the template to include.
+	 * @return string           The same template.
+	 */
+	public static function disable_fetch( $template ) {
+		if ( ! class_exists( '\\Activitypub\\Activitypub' ) ) {
+			return $template;
+		}
+
+		if ( ! method_exists( \Activitypub\Activitypub::class, 'render_json_template' ) ) {
+			return $template;
+		}
+
+		if ( ! is_singular() ) {
+			return $template;
+		}
+
+		$post     = get_queried_object();
+		$announce = get_post_meta( $post->ID, '_addon_for_activitypub_announce_activity', true );
+
+		if ( '' !== $announce ) {
+			// Disable content negotiation.
+			remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
+		}
+
+		return $template;
+	}
+
+	/**
+	 * Disables federation of repost updates.
+	 *
+	 * @param  bool                           $send      Whether we should post to followers' inboxes.
+	 * @param  \Activitypub\Activity\Activity $activity  Activity object.
+	 * @param  int                            $user_id   User ID.
+	 * @param  \WP_Post|\WP_Comment|\WP_User  $wp_object Object of the activity.
+	 */
+	public static function disable_federation( $send, $activity, $user_id, $wp_object ) {
+		if ( ! in_array( $activity->get_type(), array( 'Create', 'Delete' ), true ) ) {
+			return $send;
+		}
+
+		if ( ! $wp_object instanceof \WP_Post ) {
+			return $send;
+		}
+
+		$url = get_post_meta( $wp_object->ID, '_addon_for_activitypub_repost_of_url', true );
+		if ( empty( $url ) ) {
+			return $send;
+		}
+
+		return false;
 	}
 }

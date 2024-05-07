@@ -71,7 +71,7 @@ class Plugin {
 		}
 
 		add_filter( 'activitypub_the_content', array( $this, 'filter_content' ), 999, 2 );
-		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
+		// add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
 	}
 
 	/**
