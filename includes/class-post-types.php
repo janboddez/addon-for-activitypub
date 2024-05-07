@@ -26,6 +26,9 @@ class Post_Types {
 		/** @todo: Disable fetching "reposts"? */
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_announce' ), 999, 4 );
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_undo_announce' ), 999, 4 );
+
+		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 10, 4 );
+		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 );
 	}
 
 	/**
@@ -493,5 +496,62 @@ class Post_Types {
 		}
 
 		return $array;
+	}
+
+	/**
+	 * Disables content negotiation for reposts.
+	 *
+	 * Reposts will still appear in outboxes as Announce activities.
+	 *
+	 * @param  string $template The path of the template to include.
+	 * @return string           The same template.
+	 */
+	public static function disable_fetch( $template ) {
+		if ( ! class_exists( '\\Activitypub\\Activitypub' ) ) {
+			return $template;
+		}
+
+		if ( ! method_exists( \Activitypub\Activitypub::class, 'render_json_template' ) ) {
+			return $template;
+		}
+
+		if ( ! is_singular() ) {
+			return $template;
+		}
+
+		$post     = get_queried_object();
+		$announce = get_post_meta( $post->ID, '_addon_for_activitypub_announce_activity', true );
+
+		if ( '' !== $announce ) {
+			// Disable content negotiation.
+			remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
+		}
+
+		return $template;
+	}
+
+	/**
+	 * Disables federation of repost updates.
+	 *
+	 * @param  bool                           $send      Whether we should post to followers' inboxes.
+	 * @param  \Activitypub\Activity\Activity $activity  Activity object.
+	 * @param  int                            $user_id   User ID.
+	 * @param  \WP_Post|\WP_Comment|\WP_User  $wp_object Object of the activity.
+	 */
+	public static function disable_federation( $send, $activity, $user_id, $wp_object ) {
+		if ( ! in_array( $activity->get_type(), array( 'Create', 'Delete' ), true ) ) {
+			return $send;
+		}
+
+		if ( ! $wp_object instanceof \WP_Post ) {
+			return $send;
+		}
+
+		$url = get_post_meta( $wp_object->ID, '_addon_for_activitypub_repost_of_url', true );
+		if ( empty( $url ) ) {
+			return $send;
+		}
+
+		return false;
 	}
 }
