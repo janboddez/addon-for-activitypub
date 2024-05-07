@@ -22,12 +22,15 @@ class Post_Types {
 		// Add `inReplyTo` URL.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'add_in_reply_to_url' ), 999, 4 );
 
-		// "Repost" to boost.
-		/** @todo: Disable fetching "reposts"? */
+		// Transform "reposts" to Announce activities.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_announce' ), 999, 4 );
+		// And the deletion of "reposts" to "Undo (Announce)" activities.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_undo_announce' ), 999, 4 );
 
+		// Don't send Announce activities when reposts are updated.
 		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 10, 4 );
+
+		// And disable "fetching" of reposts.
 		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 );
 	}
 
