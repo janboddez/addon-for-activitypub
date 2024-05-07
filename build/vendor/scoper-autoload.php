@@ -29,6 +29,6 @@ if (!function_exists('humbug_phpscoper_expose_class')) {
         }
     }
 }
-humbug_phpscoper_expose_class('ComposerAutoloaderInitbfd796e1dae4745c1b71f073eb1054b9', 'AddonForActivityPub\ComposerAutoloaderInitbfd796e1dae4745c1b71f073eb1054b9');
+humbug_phpscoper_expose_class('ComposerAutoloaderInit627b648743a30f75cffded860aa949cb', 'AddonForActivityPub\ComposerAutoloaderInit627b648743a30f75cffded860aa949cb');
 
 return $loader;

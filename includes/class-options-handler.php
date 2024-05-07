@@ -32,6 +32,10 @@ class Options_Handler {
 			'type'    => 'boolean',
 			'default' => false,
 		),
+		'enable_reposts'     => array(
+			'type'    => 'boolean',
+			'default' => false,
+		),
 		'cache_avatars'      => array(
 			'type'    => 'boolean',
 			'default' => false,
@@ -132,6 +136,7 @@ class Options_Handler {
 			'edit_notifications' => isset( $settings['edit_notifications'] ) ? true : false,
 			'limit_updates'      => isset( $settings['limit_updates'] ) ? true : false,
 			'enable_replies'     => isset( $settings['enable_replies'] ) ? true : false,
+			'enable_reposts'     => isset( $settings['enable_reposts'] ) ? true : false,
 			'cache_avatars'      => isset( $settings['cache_avatars'] ) ? true : false,
 			'proxy_avatars'      => isset( $settings['proxy_avatars'] ) ? true : false,
 		);
@@ -203,9 +208,14 @@ class Options_Handler {
 					</tr>
 					//-->
 					<tr valign="top">
-						<th scope="row"><?php esc_html_e( 'Enable “Reply Posts”', 'addon-for-activitypub' ); ?></th>
-						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_replies]" value="1" <?php checked( ! empty( $this->options['enable_replies'] ) ); ?>/> <?php esc_html_e( 'Enable “reply posts”', 'addon-for-activitypub' ); ?></label>
+						<th scope="row"><?php esc_html_e( 'Enable “Replies”', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_replies]" value="1" <?php checked( ! empty( $this->options['enable_replies'] ) ); ?>/> <?php esc_html_e( 'Enable “replies”', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( '(Experimental) Reply not just to comments, but to any post in the Fediverse.', 'addon-for-activitypub' ); ?></p></td>
+					</tr>
+					<tr valign="top">
+						<th scope="row"><?php esc_html_e( 'Enable “Reposts”', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_reposts]" value="1" <?php checked( ! empty( $this->options['enable_reposts'] ) ); ?>/> <?php esc_html_e( 'Enable “reposts”', 'addon-for-activitypub' ); ?></label>
+						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “reposts” in “proper Fediverse ‘reblogs.’”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 					<?php if ( function_exists( '\\IndieBlocks\\store_image' ) ) : ?>
 						<tr valign="top">
