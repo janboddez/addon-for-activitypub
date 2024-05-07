@@ -16,6 +16,7 @@ add_filter( 'addon_for_activitypub_is_unlisted', function ( $is_unlisted, $post_
   return $is_unlisted;
 }, 10, 2 );
 ```
+**Note:** To ensure this works, you'll want to make sure the category or post format _really is applied_ **before** publishing. If you use the block ("Gutenberg") editor, that may mean having to save your post as draft before hitting "Publish."
 
 ## Reply Posts
 While the ActivityPub plugin will “federate” your replies to “Fediverse” comments, it does not (yet) support outright replying to others’ posts.
