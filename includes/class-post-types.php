@@ -14,8 +14,9 @@ class Post_Types {
 	public static function register() {
 		// Parse for microformats on save.
 		add_filter( 'save_post', array( __CLASS__, 'store_in_reply_to_url' ), 999 );
+		add_filter( 'save_post', array( __CLASS__, 'store_repost_of_url' ), 999 );
 
-		// If applicable, ensure the account we're targetting is mentioned.
+		// Ensure any "target" account gets mentioned.
 		add_filter( 'activitypub_extract_mentions', array( __CLASS__, 'add_mentions' ), 999, 3 );
 
 		// Add `inReplyTo` URL.
