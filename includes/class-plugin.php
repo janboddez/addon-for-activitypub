@@ -461,6 +461,9 @@ class Plugin {
 			return;
 		}
 
+		// Store these for a bit.
+		wp_cache_set( "addon-for-activitypub:{$post->ID}:status", array( 'old' => $old_status, 'new' => $new_status ) );
+
 		// Unhook the original callback.
 		error_log( '[Add-on for ActivityPub] Removing original callback.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		remove_action( 'transition_post_status', array( \Activitypub\Scheduler::class, 'schedule_post_activity' ), 33 );
@@ -492,13 +495,19 @@ class Plugin {
 			return;
 		}
 
-		$status = get_post_meta( $post->ID, 'activitypub_status', true );
-		if ( 'federated' === $status ) {
-			// Post was federated previously.
-			/** @todo: The main plugin sets this only after posting to all inboxes! So we could very well send multiple creates this way. */
-			$type = 'Update';
-		} else {
+		/** @todo: Look into using a static variable instead. */
+		$status = wp_cache_get( "addon-for-activitypub:{$post->ID}:status" );
+		if ( ! $status ) {
+			return;
+		}
+		wp_cache_delete( "addon-for-activitypub:{$post->ID}:status" );
+
+		if ( 'publish' === $status['new'] && 'publish' !== $status['old'] ) {
 			$type = 'Create';
+		} elseif ( 'publish' === $status['new'] ) {
+			$type = 'Update';
+		} elseif ( 'trash' === $status['new'] ) {
+			$type = 'Delete';
 		}
 
 		$hook = 'activitypub_send_post';
