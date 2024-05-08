@@ -60,7 +60,7 @@ class Plugin {
 		// Implement PHP "content templates" for post types (and comments).
 		Content_Templates::register();
 
-		// Don't POST local-only posts to followers (or anywhere).
+		// Don't `POST` local-only posts to followers (or anywhere).
 		add_filter( 'activitypub_send_activity_to_followers', array( $this, 'disable_federation' ), 99, 4 );
 		// Disable content negotiation for these posts.
 		add_filter( 'template_include', array( $this, 'disable_fetch' ), 10 );

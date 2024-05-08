@@ -24,11 +24,16 @@ class Post_Types {
 
 		// Transform "reposts" to Announce activities.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_announce' ), 999, 4 );
+
 		// And the deletion of "reposts" to "Undo (Announce)" activities.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_undo_announce' ), 999, 4 );
 
 		// Don't send Announce activities when reposts are updated.
 		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 999, 4 );
+		// Keep reposts out of "featured post" collections.
+		add_action( 'pre_get_posts', array( __CLASS__, 'hide_from_collections' ) );
+		// Correct the total post count, for "featured post" collections.
+		add_filter( 'get_usernumposts', array( __CLASS__, 'repair_count' ), 99, 2 );
 
 		// And disable "fetching" of reposts.
 		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 ); // Prio must be lower than `33`.
@@ -392,7 +397,12 @@ class Post_Types {
 		$array['type']   = 'Announce';
 		$array['object'] = esc_url_raw( $url );
 
-		update_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', $array );
+		if ( '' === get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', true ) ) {
+			// Store Announce activity, but don't override an existing one. The
+			// idea being that we need it, and it has to be accurate (?) to ever
+			// undo our reblog.
+			add_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', $array );
+		}
 
 		return $array;
 	}
@@ -411,11 +421,7 @@ class Post_Types {
 			return $array;
 		}
 
-		if ( ! isset( $array['type'] ) ) {
-			return $array;
-		}
-
-		if ( 'Delete' !== $array['type'] ) {
+		if ( ! isset( $array['type'] ) || 'Delete' !== $array['type'] ) {
 			return $array;
 		}
 
@@ -437,6 +443,7 @@ class Post_Types {
 		$array['object'] = $announce;
 
 		update_post_meta( $post_or_comment->ID, '_addon_for_activitypub_undo_announce_activity', $array );
+		delete_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', $array );
 
 		return $array;
 	}
@@ -542,7 +549,8 @@ class Post_Types {
 	 * @param  \WP_Post|\WP_Comment|\WP_User  $wp_object Object of the activity.
 	 */
 	public static function disable_federation( $send, $activity, $user_id, $wp_object ) {
-		if ( ! in_array( $activity->get_type(), array( 'Create', 'Delete' ), true ) ) {
+		if ( in_array( $activity->get_type(), array( 'Create', 'Delete' ), true ) ) {
+			// We want to disable only Updates.
 			return $send;
 		}
 
@@ -552,9 +560,113 @@ class Post_Types {
 
 		$url = get_post_meta( $wp_object->ID, '_addon_for_activitypub_repost_of_url', true );
 		if ( empty( $url ) ) {
+			// Leave non-reposts alone.
 			return $send;
 		}
 
 		return false;
+	}
+
+	/**
+	 * Keeps reposts out of featured post collections.
+	 *
+	 * @todo: Remove also reposts *from featured post collections*. It's okay for them to stay in outboxes.
+	 *
+	 * @param \WP_Query $query Database query object.
+	 */
+	public static function hide_from_collections( $query ) {
+		// @codingStandardsIgnoreStart
+		// Defaults to `true` (here), so we actually *don't* want to run this check.
+		// if ( ! empty( $query->query_vars['suppress_filters'] ) ) {
+		// 	return;
+		// }
+		// @codingStandardsIgnoreEnd
+
+		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$current_path = $_SERVER['REQUEST_URI'];
+		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
+			return;
+		}
+
+		if ( false === strpos( $current_path, 'collections/featured' ) ) {
+			return;
+		}
+
+		$query->set(
+			'meta_query',
+			array(
+				'relation' => 'OR',
+				array(
+					'key'     => '_addon_for_activitypub_repost_of_url',
+					'compare' => 'NOT EXISTS',
+				),
+				array(
+					'key'     => '_addon_for_activitypub_repost_of_url',
+					'compare' => '=',
+					'value'   => '',
+				),
+			)
+		);
+	}
+
+	/**
+	 * Takes reposts into account when determine the featured collection's total
+	 * item count.
+	 *
+	 * @param  string $count   Original post count.
+	 * @param  int    $user_id User Id.
+	 * @return int             Filtered post count.
+	 */
+	public static function repair_count( $count, $user_id ) {
+		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+			return $count;
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$current_path = $_SERVER['REQUEST_URI'];
+		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
+			return;
+		}
+
+		if ( false === strpos( $current_path, 'collections/featured' ) ) {
+			return;
+		}
+
+		$post_types = get_post_types_by_support( 'activitypub' );
+		if ( empty( $post_types ) ) {
+			return $count;
+		}
+
+		$args = array(
+			'fields'              => 'id',
+			'post_type'           => $post_types,
+			'post_status'         => 'publish', // Public only.
+			'posts_per_page'      => -1,
+			'ignore_sticky_posts' => 1,
+			'meta_query'          => array( // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_query
+				'relation' => 'OR',
+				array(
+					'key'     => '_addon_for_activitypub_repost_of_url',
+					'compare' => 'NOT EXISTS',
+				),
+				array(
+					'key'     => '_addon_for_activitypub_repost_of_url',
+					'compare' => '=',
+					'value'   => '',
+				),
+			),
+		);
+
+		if ( $user_id ) {
+			$args['author__in'] = $user_id;
+		}
+
+		$posts = get_posts( $args );
+
+		return count( $posts );
 	}
 }
