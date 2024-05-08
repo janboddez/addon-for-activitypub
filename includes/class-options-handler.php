@@ -12,6 +12,10 @@ class Options_Handler {
 	 * Plugin option schema.
 	 */
 	const SCHEMA = array(
+		'local_cat'          => array(
+			'type'    => 'string',
+			'default' => '',
+		),
 		'unlisted_cat'       => array(
 			'type'    => 'string',
 			'default' => '',
@@ -129,6 +133,9 @@ class Options_Handler {
 	 */
 	public function sanitize_settings( $settings ) {
 		$options = array(
+			'local_cat'          => isset( $settings['local_cat'] ) && '' !== $settings['local_cat']
+				? sanitize_title( $settings['local_cat'] )
+				: '',
 			'unlisted_cat'       => isset( $settings['unlisted_cat'] ) && '' !== $settings['unlisted_cat']
 				? sanitize_title( $settings['unlisted_cat'] )
 				: '',
@@ -159,6 +166,36 @@ class Options_Handler {
 				settings_fields( 'addon-for-activitypub-settings-group' );
 				?>
 				<table class="form-table">
+				<tr valign="top">
+						<th scope="row"><label for="addon_for_activitypub_settings[local_cat]"><?php esc_html_e( '“Local-only” Category', 'addon-for-activitypub' ); ?></label></th>
+						<td>
+							<select name="addon_for_activitypub_settings[local_cat]" id="addon_for_activitypub_settings[local_cat]">
+								<option value="">&nbsp;</option>
+								<?php
+								$categories = get_categories(
+									array(
+										'orderby'    => 'name',
+										'order'      => 'ASC',
+										'hide_empty' => false,
+									)
+								);
+
+								if ( ! empty( $categories ) ) :
+									foreach ( $categories as $category ) :
+										?>
+										<option value="<?php echo esc_attr( $category->slug ); ?>" <?php ( ! empty( $this->options['local_cat'] ) ? selected( $category->slug, $this->options['local_cat'] ) : '' ); ?>>
+											<?php echo esc_html( $category->name ); ?>
+										</option>
+										<?php
+									endforeach;
+								endif;
+								?>
+							</select>
+							<p class="description">
+								<?php esc_html_e( 'Posts (of any type) in this category will not be sent to your ActivityPub followers at all. (Blank means all posts will be “federated.”)', 'addon-for-activitypub' ); ?><br />
+							</p>
+						</td>
+					</tr>
 					<tr valign="top">
 						<th scope="row"><label for="addon_for_activitypub_settings[unlisted_cat]"><?php esc_html_e( '“Unlisted” Category', 'addon-for-activitypub' ); ?></label></th>
 						<td>
@@ -185,7 +222,7 @@ class Options_Handler {
 								?>
 							</select>
 							<p class="description">
-								<?php _e( 'Posts (of any type) in this category will appear “unlisted” on platforms like Mastodon. (Blank means all posts will be “public.”)', 'addon-for-activitypub' ); // phpcs:ignore WordPress.Security.EscapeOutput.UnsafePrintingFunction ?><br />
+								<?php esc_html_e( 'Posts (of any type) in this category will appear “unlisted” on platforms like Mastodon. (Blank means all posts will be “public.”)', 'addon-for-activitypub' ); ?><br />
 								<?php _e( 'Alternatively, use the <code>addon_for_activitypub_is_unlisted</code> filter.', 'addon-for-activitypub' ); // phpcs:ignore WordPress.Security.EscapeOutput.UnsafePrintingFunction ?>
 							</p>
 						</td>

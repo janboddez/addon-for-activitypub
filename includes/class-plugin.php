@@ -56,6 +56,18 @@ class Plugin {
 		// Translate "IndieWeb" post types to the proper activities and objects.
 		Post_Types::register();
 
+		$options = get_options();
+		if ( isset( $options['local_cat'] ) && '' !== $options['local_cat'] ) {
+			// Don't POST local-only posts to followers (or anywhere).
+			add_filter( 'activitypub_send_activity_to_followers', array( $this, 'disable_federation' ), 99, 4 );
+			// Disable content negotiation for these posts.
+			add_filter( 'template_include', array( $this, 'disable_fetch' ), 10 );
+			// Keep local-only posts out of outboxes and "featured post" collections.
+			add_action( 'pre_get_posts', array( $this, 'hide_from_collections' ) );
+			// Correct the total post count, for outboxes and "featured post" collections.
+			add_filter( 'get_usernumposts', array( $this, 'repair_count' ), 99, 2 );
+		}
+
 		add_filter( 'activitypub_activity_object_array', array( $this, 'filter_object' ), 999, 4 );
 
 		if ( ! empty( $options['edit_notifications'] ) ) {
@@ -71,6 +83,10 @@ class Plugin {
 		}
 
 		add_filter( 'activitypub_the_content', array( $this, 'filter_content' ), 999, 2 );
+
+		// This doesn't yet work as it should, but we *have* to "delay" posting
+		// until the REST API has processed categories and the like, in order
+		// for our "local-only" category to reliably work.
 		// add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
 	}
 
@@ -88,6 +104,147 @@ class Plugin {
 	 */
 	public function get_options_handler() {
 		return $this->options_handler;
+	}
+
+	/**
+	 * Disables content negotiation for local-only posts.
+	 *
+	 * @param  string $template The path of the template to include.
+	 * @return string           The same template.
+	 */
+	public function disable_fetch( $template ) {
+		if ( ! class_exists( '\\Activitypub\\Activitypub' ) ) {
+			return $template;
+		}
+
+		if ( ! method_exists( \Activitypub\Activitypub::class, 'render_json_template' ) ) {
+			return $template;
+		}
+
+		if ( ! is_singular() ) {
+			return $template;
+		}
+
+		$post = get_queried_object();
+
+		$options = get_options();
+		if ( in_category( $options['local_cat'], $post ) ) {
+			// Disable content negotiation.
+			remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
+		}
+
+		return $template;
+	}
+
+	/**
+	 * Disables federation of repost updates.
+	 *
+	 * @param  bool                           $send      Whether we should post to followers' inboxes.
+	 * @param  \Activitypub\Activity\Activity $activity  Activity object.
+	 * @param  int                            $user_id   User ID.
+	 * @param  \WP_Post|\WP_Comment|\WP_User  $wp_object Object of the activity.
+	 * @return bool                                      Whether we should post to followers' inboxes.
+	 */
+	public function disable_federation( $send, $activity, $user_id, $wp_object ) {
+		if ( ! $wp_object instanceof \WP_Post ) {
+			return $send;
+		}
+
+		$options = get_options();
+		if ( ! in_category( $options['local_cat'], $wp_object ) ) {
+			return $send;
+		}
+
+		return false;
+	}
+
+	/**
+	 * Disables content negotiation for local-only posts.
+	 *
+	 * @param \WP_Query $query Database query object.
+	 */
+	public function hide_from_collections( $query ) {
+		// @codingStandardsIgnoreStart
+		// The default is `true`, so we actually *don't* want to run
+		// this check.
+		// if ( ! empty( $query->query_vars['suppress_filters'] ) ) {
+		// 	return;
+		// }
+		// @codingStandardsIgnoreEnd
+
+		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+			return;
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$current_path = $_SERVER['REQUEST_URI'];
+		if (
+			false === strpos( $current_path, 'activitypub' ) ||
+			( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) )
+		) {
+			return;
+		}
+
+		$options = get_options();
+		if ( ! isset( $options['local_cat'] ) || '' === $options['local_cat'] ) {
+			return;
+		}
+
+		$category = get_category_by_slug( $options['local_cat'] );
+		if ( empty( $category->term_id ) ) {
+			return;
+		}
+
+		$query->set( 'category__not_in', array( $category->term_id ) );
+	}
+
+	/**
+	 * Updates the number of posts by a certain user.
+	 *
+	 * @param  string $count   Original post count.
+	 * @param  int    $user_id User Id.
+	 * @return int             Filtered post count.
+	 */
+	public function repair_count( $count, $user_id ) {
+		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+			return $count;
+		}
+
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$current_path = $_SERVER['REQUEST_URI'];
+		if (
+			false === strpos( $current_path, 'activitypub' ) ||
+			( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) )
+		) {
+			return $count;
+		}
+
+		$options = get_options();
+		if ( ! isset( $options['local_cat'] ) || '' === $options['local_cat'] ) {
+			return $count;
+		}
+
+		$category = get_category_by_slug( $options['local_cat'] ); // @todo: Verify it exists, still.
+		if ( empty( $category->term_id ) ) {
+			return $count;
+		}
+
+		$args = array(
+			'fields'              => 'id',
+			'post_type'           => get_post_types_by_support( 'activitypub' ),
+			'post_status'         => 'publish', // Public only.
+			'category__not_in'    => $category->term_id,
+			'posts_per_page'      => -1,
+			'ignore_sticky_posts' => 1,
+		);
+
+		if ( $user_id ) {
+			$args['author__in'] = $user_id;
+		}
+
+		$posts = get_posts( $args );
+
+		return count( $posts );
 	}
 
 	/**
