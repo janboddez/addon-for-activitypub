@@ -28,10 +28,10 @@ class Post_Types {
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_undo_announce' ), 999, 4 );
 
 		// Don't send Announce activities when reposts are updated.
-		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 10, 4 );
+		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 999, 4 );
 
 		// And disable "fetching" of reposts.
-		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 );
+		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 ); // Prio must be lower than `33`.
 	}
 
 	/**

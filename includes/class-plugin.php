@@ -7,6 +7,7 @@
 
 namespace AddonForActivityPub;
 
+use Activitypub\Activity\Activity;
 use Activitypub\Activity\Base_Object;
 
 class Plugin {
@@ -56,19 +57,20 @@ class Plugin {
 		// Translate "IndieWeb" post types to the proper activities and objects.
 		Post_Types::register();
 
-		$options = get_options();
-		if ( isset( $options['local_cat'] ) && '' !== $options['local_cat'] ) {
-			// Don't POST local-only posts to followers (or anywhere).
-			add_filter( 'activitypub_send_activity_to_followers', array( $this, 'disable_federation' ), 99, 4 );
-			// Disable content negotiation for these posts.
-			add_filter( 'template_include', array( $this, 'disable_fetch' ), 10 );
-			// Keep local-only posts out of outboxes and "featured post" collections.
-			add_action( 'pre_get_posts', array( $this, 'hide_from_collections' ) );
-			// Correct the total post count, for outboxes and "featured post" collections.
-			add_filter( 'get_usernumposts', array( $this, 'repair_count' ), 99, 2 );
-		}
+		// Implement PHP "content templates" for post types (and comments).
+		Content_Templates::register();
 
-		add_filter( 'activitypub_activity_object_array', array( $this, 'filter_object' ), 999, 4 );
+		// Don't POST local-only posts to followers (or anywhere).
+		add_filter( 'activitypub_send_activity_to_followers', array( $this, 'disable_federation' ), 99, 4 );
+		// Disable content negotiation for these posts.
+		add_filter( 'template_include', array( $this, 'disable_fetch' ), 10 );
+		// Keep local-only posts out of outboxes and "featured post" collections.
+		add_action( 'pre_get_posts', array( $this, 'hide_from_collections' ) );
+		// Correct the total post count, for outboxes and "featured post" collections.
+		add_filter( 'get_usernumposts', array( $this, 'repair_count' ), 99, 2 );
+
+		// Mark "unlisted" posts as unlisted.
+		add_filter( 'activitypub_activity_object_array', array( $this, 'set_unlisted' ), 999, 4 );
 
 		if ( ! empty( $options['edit_notifications'] ) ) {
 			add_action( 'activitypub_handled_update', array( $this, 'send_edit_notification' ), 999, 4 );
@@ -81,8 +83,6 @@ class Plugin {
 		if ( ! empty( $options['proxy_avatars'] ) ) {
 			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 999, 3 );
 		}
-
-		add_filter( 'activitypub_the_content', array( $this, 'filter_content' ), 999, 2 );
 
 		// This doesn't yet work as it should, but we *have* to "delay" posting
 		// until the REST API has processed categories and the like, in order
@@ -126,6 +126,9 @@ class Plugin {
 		}
 
 		$post = get_queried_object();
+		if ( ! $post instanceof \WP_Post ) {
+			return $template;
+		}
 
 		$options = get_options();
 		if ( in_category( $options['local_cat'], $post ) ) {
@@ -137,13 +140,13 @@ class Plugin {
 	}
 
 	/**
-	 * Disables federation of repost updates.
+	 * Disables federation of local-only posts.
 	 *
-	 * @param  bool                           $send      Whether we should post to followers' inboxes.
-	 * @param  \Activitypub\Activity\Activity $activity  Activity object.
-	 * @param  int                            $user_id   User ID.
-	 * @param  \WP_Post|\WP_Comment|\WP_User  $wp_object Object of the activity.
-	 * @return bool                                      Whether we should post to followers' inboxes.
+	 * @param  bool                          $send      Whether we should post to followers' inboxes.
+	 * @param  Activity                      $activity  Activity object.
+	 * @param  int                           $user_id   User ID.
+	 * @param  \WP_Post|\WP_Comment|\WP_User $wp_object Object of the activity.
+	 * @return bool                                     Whether we should post to followers' inboxes.
 	 */
 	public function disable_federation( $send, $activity, $user_id, $wp_object ) {
 		if ( ! $wp_object instanceof \WP_Post ) {
@@ -159,14 +162,15 @@ class Plugin {
 	}
 
 	/**
-	 * Disables content negotiation for local-only posts.
+	 * Keeps local-only posts out of outboxes and featured post collections.
+	 *
+	 * @todo: Remove also reposts *from featured post collections*. It's okay for them to stay in outboxes.
 	 *
 	 * @param \WP_Query $query Database query object.
 	 */
 	public function hide_from_collections( $query ) {
 		// @codingStandardsIgnoreStart
-		// The default is `true`, so we actually *don't* want to run
-		// this check.
+		// Defaults to `true` (here), so we actually *don't* want to run this check.
 		// if ( ! empty( $query->query_vars['suppress_filters'] ) ) {
 		// 	return;
 		// }
@@ -178,10 +182,11 @@ class Plugin {
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$current_path = $_SERVER['REQUEST_URI'];
-		if (
-			false === strpos( $current_path, 'activitypub' ) ||
-			( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) )
-		) {
+		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
+			return;
+		}
+
+		if ( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) ) {
 			return;
 		}
 
@@ -199,7 +204,7 @@ class Plugin {
 	}
 
 	/**
-	 * Updates the number of posts by a certain user.
+	 * Takes local-only posts into account when determine the total item count.
 	 *
 	 * @param  string $count   Original post count.
 	 * @param  int    $user_id User Id.
@@ -212,11 +217,12 @@ class Plugin {
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 		$current_path = $_SERVER['REQUEST_URI'];
-		if (
-			false === strpos( $current_path, 'activitypub' ) ||
-			( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) )
-		) {
-			return $count;
+		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
+			return;
+		}
+
+		if ( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) ) {
+			return;
 		}
 
 		$options = get_options();
@@ -229,9 +235,14 @@ class Plugin {
 			return $count;
 		}
 
+		$post_types = get_post_types_by_support( 'activitypub' );
+		if ( empty( $post_types ) ) {
+			return $count;
+		}
+
 		$args = array(
 			'fields'              => 'id',
-			'post_type'           => get_post_types_by_support( 'activitypub' ),
+			'post_type'           => $post_types,
 			'post_status'         => 'publish', // Public only.
 			'category__not_in'    => $category->term_id,
 			'posts_per_page'      => -1,
@@ -248,7 +259,7 @@ class Plugin {
 	}
 
 	/**
-	 * Filters (Activities') objects before they're rendered or federated.
+	 * Implements "unlisted" posts and comments.
 	 *
 	 * @todo: Make the category configurable.
 	 *
@@ -258,7 +269,7 @@ class Plugin {
 	 * @param  Base_Object $object Activity object.
 	 * @return array               The updated array.
 	 */
-	public function filter_object( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
+	public function set_unlisted( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		$post_or_comment = get_object( $array, $class );
 
 		if ( ! $post_or_comment ) {
@@ -415,94 +426,6 @@ class Plugin {
 		}
 
 		return $args;
-	}
-
-	/**
-	 * Filters ActivityPub objects' contents.
-	 *
-	 * @param  string               $content Original content.
-	 * @param  \WP_Post|\WP_Comment $obj     Post or comment object.
-	 * @return string                        Altered content.
-	 */
-	public function filter_content( $content, $obj ) {
-		$allowed_tags = array(
-			'a'          => array(
-				'href'  => array(),
-				'title' => array(),
-				'class' => array(),
-				'rel'   => array(),
-			),
-			'br'         => array(),
-			'p'          => array(
-				'class' => array(),
-			),
-			'span'       => array(
-				'class' => array(),
-			),
-			'ul'         => array(),
-			'ol'         => array(
-				'reversed' => array(),
-				'start'    => array(),
-			),
-			'li'         => array(
-				'value' => array(),
-			),
-			'strong'     => array(
-				'class' => array(),
-			),
-			'b'          => array(
-				'class' => array(),
-			),
-			'i'          => array(
-				'class' => array(),
-			),
-			'em'         => array(
-				'class' => array(),
-			),
-			'blockquote' => array(),
-			'cite'       => array(),
-			'code'       => array(
-				'class' => array(),
-			),
-			'pre'        => array(
-				'class' => array(),
-			),
-		);
-
-		if ( $obj instanceof \WP_Post ) {
-			$post      = $obj;
-			$post_type = $post->post_type;
-			$template  = locate_template( "activitypub/content-{$post_type}.php" );
-
-			if ( '' !== $template ) {
-				ob_start();
-				require $template;
-				$content = ob_get_clean();
-			}
-		} elseif ( $obj instanceof \WP_Comment ) {
-			$comment  = $obj;
-			$template = locate_template( 'activitypub/content-comment.php' );
-
-			if ( '' !== $template ) {
-				ob_start();
-				require $template;
-				$content = ob_get_clean();
-			}
-		}
-
-		if ( empty( $template ) ) {
-			// Return unaltered.
-			return $content;
-		}
-
-		// If a template was used, "sanitize" the new content (somewhat).
-		$content = wp_kses( $content, $allowed_tags );
-		// Strip whitespace, but ignore `pre` elements' contents.
-		$content = preg_replace( '~<pre[^>]*>.*?</pre>(*SKIP)(*FAIL)|\r|\n|\t~s', '', $content );
-		// Strip unnecessary whitespace.
-		$content = zz\Html\HTMLMinify::minify( $content );
-
-		return $content;
 	}
 
 	/**

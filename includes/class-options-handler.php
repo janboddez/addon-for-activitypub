@@ -1,6 +1,6 @@
 <?php
 /**
- * Main plugin class.
+ * Settings page and the like.
  *
  * @package AddonForActivityPub
  */
@@ -8,9 +8,6 @@
 namespace AddonForActivityPub;
 
 class Options_Handler {
-	/**
-	 * Plugin option schema.
-	 */
 	const SCHEMA = array(
 		'local_cat'          => array(
 			'type'    => 'string',
