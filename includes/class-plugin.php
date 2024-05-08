@@ -87,7 +87,7 @@ class Plugin {
 		// This doesn't yet work as it should, but we *have* to "delay" posting
 		// until the REST API has processed categories and the like, in order
 		// for our "local-only" category to reliably work.
-		// add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
+		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
 	}
 
 	/**
@@ -436,17 +436,11 @@ class Plugin {
 	 * @param \WP_Post $post       Post object.
 	 */
 	public function delay_scheduling( $new_status, $old_status, $post ) {
-		if ( ! class_exists( '\\Activitypub\\Scheduler' ) || ! method_exists( \Activitypub\Scheduler::class, 'schedule_post_activity' ) ) {
-			// Missing dependency. Bail.
+		if ( ! class_exists( '\\Activitypub\\Scheduler' ) ) {
 			return;
 		}
 
-		if ( 'trash' === $new_status ) {
-			// Leave deletes alone.
-			return;
-		}
-
-		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+		if ( ! method_exists( \Activitypub\Scheduler::class, 'schedule_post_activity' ) ) {
 			return;
 		}
 
@@ -462,6 +456,11 @@ class Plugin {
 			return;
 		}
 
+		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+			// "Delay" for REST API requests only.
+			return;
+		}
+
 		// Unhook the original callback.
 		error_log( '[Add-on for ActivityPub] Removing original callback.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		remove_action( 'transition_post_status', array( \Activitypub\Scheduler::class, 'schedule_post_activity' ), 33 );
@@ -470,23 +469,26 @@ class Plugin {
 		$post_types = get_post_types_by_support( 'activitypub' );
 		if ( in_array( $post->post_type, $post_types, true ) ) {
 			error_log( '[Add-on for ActivityPub] Hooking up new callback.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			add_action( "rest_after_insert_{$post->post_type}", array( $this, 'schedule_post_activity' ), 10 );
+			add_action( "rest_after_insert_{$post->post_type}", array( $this, 'schedule_post_activity' ), 999 );
 		}
 	}
 
 	/**
-	 * Delay scheduling for posts created or updated through the REST API.
+	 * Schedule federation of Create, Update and Announce activities.
 	 *
-	 * @param \WP_Post $post Inserted or updated post object.
+	 * @param int|\WP_Post $post Inserted or updated post ID or object.
 	 */
 	public function schedule_post_activity( $post ) {
+		$post = get_post( $post );
+
 		if ( post_password_required( $post ) ) {
 			// Stop right there.
 			return;
 		}
 
 		if ( 'publish' !== $post->post_status ) {
-			// This function concerns only Creates and Updates.
+			// Avoid federating non-published posts. Remember that we don't deal
+			// with deletes here.
 			return;
 		}
 
@@ -496,10 +498,6 @@ class Plugin {
 			$type = 'Update';
 		} else {
 			$type = 'Create';
-		}
-
-		if ( empty( $type ) ) {
-			return;
 		}
 
 		$hook = 'activitypub_send_post';
