@@ -84,9 +84,9 @@ class Plugin {
 			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 999, 3 );
 		}
 
-		// This doesn't yet work as it should, but we *have* to "delay" posting
-		// until the REST API has processed categories and the like, in order
-		// for our "local-only" category to reliably work.
+		// We *have to* "delay" federation until the REST API has processed
+		// categories and the like, for our "local-only" category to work
+		// reliably.
 		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
 	}
 
