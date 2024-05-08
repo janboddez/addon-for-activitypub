@@ -495,6 +495,7 @@ class Plugin {
 		$status = get_post_meta( $post->ID, 'activitypub_status', true );
 		if ( 'federated' === $status ) {
 			// Post was federated previously.
+			/** @todo: The main plugin sets this only after posting to all inboxes! So we could very well send multiple creates this way. */
 			$type = 'Update';
 		} else {
 			$type = 'Create';
