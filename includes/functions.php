@@ -123,9 +123,12 @@ function remote_get( $url, $content_type = '' ) {
 /**
  * Stores a post's "old" and "new" status for the duration of the request.
  *
+ * Used to "forward" the status arguments of `transition_post_status` to
+ * `rest_after_insert{$post->post_type}`.
+ *
  * @param  array $post_id Post ID.
- * @param  array $value   Post's old and new status.
- * @return array          Current known statuses.
+ * @param  array $value   Associative array containing the post's old and new statuses.
+ * @return array|null     Current known statuses.
  */
 function current_post_statuses( $post_id, $value = null ) {
 	static $post_statuses = array();
@@ -133,7 +136,7 @@ function current_post_statuses( $post_id, $value = null ) {
 	if ( is_array( $value ) ) {
 		// Store.
 		$post_statuses[ $post_id ] = $value;
-	} else {
+	} elseif ( ! empty( $post_statuses[ $post_id ] ) ) {
 		// Fetch.
 		$current_value = $post_statuses[ $post_id ];
 		// And ... forget.
@@ -141,4 +144,6 @@ function current_post_statuses( $post_id, $value = null ) {
 
 		return $current_value;
 	}
+
+	return null;
 }
