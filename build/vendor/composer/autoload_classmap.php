@@ -7,6 +7,7 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'AddonForActivityPub\\Content_Templates' => $baseDir . '/../includes/class-content-templates.php',
+    'AddonForActivityPub\\Limit_Updates' => $baseDir . '/../includes/class-limit-updates.php',
     'AddonForActivityPub\\Masterminds\\HTML5' => $vendorDir . '/masterminds/html5/src/HTML5.php',
     'AddonForActivityPub\\Masterminds\\HTML5\\Elements' => $vendorDir . '/masterminds/html5/src/HTML5/Elements.php',
     'AddonForActivityPub\\Masterminds\\HTML5\\Entities' => $vendorDir . '/masterminds/html5/src/HTML5/Entities.php',

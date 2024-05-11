@@ -32,6 +32,7 @@ class ComposerStaticInit627b648743a30f75cffded860aa949cb
 
     public static $classMap = array (
         'AddonForActivityPub\\Content_Templates' => __DIR__ . '/../..' . '/../includes/class-content-templates.php',
+        'AddonForActivityPub\\Limit_Updates' => __DIR__ . '/../..' . '/../includes/class-limit-updates.php',
         'AddonForActivityPub\\Masterminds\\HTML5' => __DIR__ . '/..' . '/masterminds/html5/src/HTML5.php',
         'AddonForActivityPub\\Masterminds\\HTML5\\Elements' => __DIR__ . '/..' . '/masterminds/html5/src/HTML5/Elements.php',
         'AddonForActivityPub\\Masterminds\\HTML5\\Entities' => __DIR__ . '/..' . '/masterminds/html5/src/HTML5/Entities.php',

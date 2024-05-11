@@ -2,6 +2,8 @@
 /**
  * Translates "IndieWeb" post types to the proper activities and objects.
  *
+ * @todo: Add "likes."
+ *
  * @package AddonForActivityPub
  */
 
@@ -13,30 +15,29 @@ class Post_Types {
 	 */
 	public static function register() {
 		// Parse for microformats on save.
+		/** @todo: Store a single simplified "mf2-like" array instead. */
 		add_filter( 'save_post', array( __CLASS__, 'store_in_reply_to_url' ), 999 );
 		add_filter( 'save_post', array( __CLASS__, 'store_repost_of_url' ), 999 );
 
 		// Ensure any "target" account gets mentioned.
 		add_filter( 'activitypub_extract_mentions', array( __CLASS__, 'add_mentions' ), 999, 3 );
 
+		/** @todo: These, too, could probably be grouped into a single function. */
 		// Add `inReplyTo` URL.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'add_in_reply_to_url' ), 999, 4 );
-
 		// Transform "reposts" to Announce activities.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_announce' ), 999, 4 );
-
 		// And the deletion of "reposts" to "Undo (Announce)" activities.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_undo_announce' ), 999, 4 );
 
 		// Don't send Announce activities when reposts are updated.
 		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 999, 4 );
-		// Keep reposts out of "featured post" collections.
+		// Keep reposts out of "featured" collections. They can be in inboxes just fine.
 		add_action( 'pre_get_posts', array( __CLASS__, 'hide_from_collections' ) );
-		// Correct the total post count, for "featured post" collections.
+		// Correct the total post count, for "featured" collections.
 		add_filter( 'get_usernumposts', array( __CLASS__, 'repair_count' ), 99, 2 );
-
 		// And disable "fetching" of reposts.
-		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 ); // Prio must be lower than `33`.
+		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 ); // Prio must be lower than `99`.
 	}
 
 	/**

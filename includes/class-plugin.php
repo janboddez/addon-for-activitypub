@@ -54,19 +54,20 @@ class Plugin {
 		$this->options_handler = new Options_Handler();
 		$this->options_handler->register();
 
-		// Translate "IndieWeb" post types to the proper activities and objects.
+		Limit_Updates::register();
 		Post_Types::register();
-
-		// Implement PHP "content templates" for post types (and comments).
 		Content_Templates::register();
 
+		/**
+		 * Local-only posts.
+		 */
 		// Don't `POST` local-only posts to followers (or anywhere).
 		add_filter( 'activitypub_send_activity_to_followers', array( $this, 'disable_federation' ), 99, 4 );
 		// Disable content negotiation for these posts.
 		add_filter( 'template_include', array( $this, 'disable_fetch' ), 10 );
-		// Keep local-only posts out of outboxes and "featured post" collections.
+		// Keep local-only posts out of outboxes and "featured" collections.
 		add_action( 'pre_get_posts', array( $this, 'hide_from_collections' ) );
-		// Correct the total post count, for outboxes and "featured post" collections.
+		// Correct the total post count, for outboxes and "featured" collections.
 		add_filter( 'get_usernumposts', array( $this, 'repair_count' ), 99, 2 );
 
 		// Mark "unlisted" posts as unlisted.
@@ -266,22 +267,17 @@ class Plugin {
 	 * @param  array       $array  Activity object's array representation.
 	 * @param  string      $class  Class name.
 	 * @param  string      $id     Activity object ID.
-	 * @param  Base_Object $object Activity object.
+	 * @param  Base_Object $object Activity (or object) object.
 	 * @return array               The updated array.
 	 */
 	public function set_unlisted( $array, $class, $id, $object ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.classFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound,Generic.CodeAnalysis.UnusedFunctionParameter.FoundAfterLastUsed
 		$post_or_comment = get_object( $array, $class );
-
 		if ( ! $post_or_comment ) {
 			return $array;
 		}
 
-		$options = get_options();
-
-		/**
-		 * The "unlisted" stuff.
-		 */
 		$is_unlisted = false;
+		$options     = get_options();
 
 		if (
 			$post_or_comment instanceof \WP_Post &&
