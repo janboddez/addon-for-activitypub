@@ -56,6 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 <?php echo apply_filters( 'the_content', $post->post_content ); ?>
 <p><a href="<?php echo esc_url( get_permalink( $post ) ); ?>"><?php echo esc_html( get_permalink( $post ) ); ?></a></p>
 ```
+The idea here is that you _could_ append custom fields and whatnot.
 
 ## User Profiles
 These are somewhat like the “post type templates” above.
