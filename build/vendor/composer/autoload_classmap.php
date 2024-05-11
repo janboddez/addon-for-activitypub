@@ -6,7 +6,6 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'AddonForActivityPub\\Content_Templates' => $baseDir . '/../includes/class-content-templates.php',
     'AddonForActivityPub\\Limit_Updates' => $baseDir . '/../includes/class-limit-updates.php',
     'AddonForActivityPub\\Masterminds\\HTML5' => $vendorDir . '/masterminds/html5/src/HTML5.php',
     'AddonForActivityPub\\Masterminds\\HTML5\\Elements' => $vendorDir . '/masterminds/html5/src/HTML5/Elements.php',
@@ -31,6 +30,7 @@ return array(
     'AddonForActivityPub\\Options_Handler' => $baseDir . '/../includes/class-options-handler.php',
     'AddonForActivityPub\\Plugin' => $baseDir . '/../includes/class-plugin.php',
     'AddonForActivityPub\\Post_Types' => $baseDir . '/../includes/class-post-types.php',
+    'AddonForActivityPub\\Templates' => $baseDir . '/../includes/class-templates.php',
     'AddonForActivityPub\\zz\\Html\\HTMLMinify' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLMinify.php',
     'AddonForActivityPub\\zz\\Html\\HTMLNames' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLNames.php',
     'AddonForActivityPub\\zz\\Html\\HTMLToken' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLToken.php',

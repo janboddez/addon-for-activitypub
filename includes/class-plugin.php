@@ -55,7 +55,7 @@ class Plugin {
 		$this->options_handler->register();
 
 		Post_Types::register();
-		Content_Templates::register();
+		Templates::register();
 
 		/**
 		 * Local-only posts.
