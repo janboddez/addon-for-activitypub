@@ -234,13 +234,11 @@ class Options_Handler {
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[edit_notifications]" value="1" <?php checked( ! empty( $this->options['edit_notifications'] ) ); ?>/> <?php esc_html_e( 'Enable “edit” notifications', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Receive an email notification when a (remote) comment gets edited.', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
-					<!--
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( 'Limit Updates', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[limit_updates]" value="1" <?php checked( ! empty( $this->options['limit_updates'] ) ); ?>/> <?php esc_html_e( 'Limit updates', 'addon-for-activitypub' ); ?></label>
-						<p class="description"><?php esc_html_e( '(Experimental) Attempts to “federate” only “meaningful” updates.', 'addon-for-activitypub' ); ?></p></td>
+						<p class="description"><?php esc_html_e( '(Experimental) Attempts to “federate” only “meaningful” Update activities. May conflict with your specific setup!', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
-					//-->
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( 'Enable “Replies”', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_replies]" value="1" <?php checked( ! empty( $this->options['enable_replies'] ) ); ?>/> <?php esc_html_e( 'Enable “replies”', 'addon-for-activitypub' ); ?></label>

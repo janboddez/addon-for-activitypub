@@ -54,7 +54,6 @@ class Plugin {
 		$this->options_handler = new Options_Handler();
 		$this->options_handler->register();
 
-		Limit_Updates::register();
 		Post_Types::register();
 		Content_Templates::register();
 
@@ -72,6 +71,13 @@ class Plugin {
 
 		// Mark "unlisted" posts as unlisted.
 		add_filter( 'activitypub_activity_object_array', array( $this, 'set_unlisted' ), 999, 4 );
+
+		$options = $this->options_handler
+			->get_options();
+
+		if ( ! empty( $options['limit_updates'] ) ) {
+			Limit_Updates::register();
+		}
 
 		if ( ! empty( $options['edit_notifications'] ) ) {
 			add_action( 'activitypub_handled_update', array( $this, 'send_edit_notification' ), 999, 4 );
