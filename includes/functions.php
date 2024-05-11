@@ -119,3 +119,26 @@ function remote_get( $url, $content_type = '' ) {
 
 	return $response;
 }
+
+/**
+ * Stores a post's "old" and "new" status for the duration of the request.
+ *
+ * @param  array $post_id Post ID.
+ * @param  array $value   Post's old and new status.
+ * @return array          Current known statuses.
+ */
+function current_post_statuses( $post_id, $value = null ) {
+	static $post_statuses = array();
+
+	if ( is_array( $value ) ) {
+		// Store.
+		$post_statuses[ $post_id ] = $value;
+	} else {
+		// Fetch.
+		$current_value = $post_statuses[ $post_id ];
+		// And ... forget.
+		unset( $post_statuses[ $post_id ] );
+
+		return $current_value;
+	}
+}

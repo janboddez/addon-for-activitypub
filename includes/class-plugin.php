@@ -464,7 +464,7 @@ class Plugin {
 		}
 
 		// Store these for a bit.
-		wp_cache_set( "addon-for-activitypub:{$post->ID}:status", array( 'old' => $old_status, 'new' => $new_status ) );
+		current_post_statuses( $post->ID, array( 'old' => $old_status, 'new' => $new_status ) );
 
 		// Unhook the original callback.
 		error_log( '[Add-on for ActivityPub] Removing original callback.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
@@ -497,12 +497,11 @@ class Plugin {
 			return;
 		}
 
-		/** @todo: Look into using a static variable instead. */
-		$status = wp_cache_get( "addon-for-activitypub:{$post->ID}:status" );
+		// Retrieve previously stored old and new statuses.
+		$status = current_post_statuses( $post->ID );
 		if ( ! $status ) {
 			return;
 		}
-		wp_cache_delete( "addon-for-activitypub:{$post->ID}:status" );
 
 		if ( 'publish' === $status['new'] && 'publish' !== $status['old'] ) {
 			$type = 'Create';
