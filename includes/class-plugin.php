@@ -57,9 +57,6 @@ class Plugin {
 		Post_Types::register();
 		Templates::register();
 
-		/**
-		 * Local-only posts.
-		 */
 		// Don't `POST` local-only posts to followers (or anywhere).
 		add_filter( 'activitypub_send_activity_to_followers', array( $this, 'disable_federation' ), 99, 4 );
 		// Disable content negotiation for these posts.
@@ -336,12 +333,13 @@ class Plugin {
 	 * @param \WP_Comment|null $reaction      Comment object if that comment was updated, `null` otherwise.
 	 */
 	public function send_edit_notification( $activity, $unknown_param, $state, $reaction ) {
-		/** @todo: Send an email or something, because if you get quite a few of these, it's impossible to keep up. */
-		if ( $reaction instanceof \WP_Comment ) {
-			// phpcs:ignore Squiz.PHP.CommentedOutCode.Found,Squiz.Commenting.InlineComment.InvalidEndChar
-			// wp_set_comment_status( $reaction, 'hold' );
-			wp_notify_moderator( $reaction->comment_ID );
+		if ( ! $reaction instanceof \WP_Comment ) {
+			return;
 		}
+
+		// phpcs:ignore Squiz.PHP.CommentedOutCode.Found,Squiz.Commenting.InlineComment.InvalidEndChar
+		// wp_set_comment_status( $reaction, 'hold' );
+		wp_notify_moderator( $reaction->comment_ID );
 	}
 
 	/**
