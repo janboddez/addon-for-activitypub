@@ -43,25 +43,30 @@ class Limit_Updates {
 
 		$old_hash = get_post_meta( $wp_object->ID, '_addon_for_activitypub_hash', true );
 
-		// Convert `$post` to an array, but keep only the following properties.
-		$obj = array_filter(
-			(array) $wp_object,
-			function ( $key ) {
-				return in_array( $key, array( 'post_name', 'post_title', 'post_excerpt', 'post_content', 'post_type' ), true );
-			},
-			ARRAY_FILTER_USE_KEY
-		);
+		// Filter to let developers do their own thing (like, add in other
+		// fields).
+		$new_hash = apply_filters( 'addon_for_activitypub_object_hash', null, $wp_object, $activity, $user_id );
 
-		// Add in "current" tags. Thanks to our using the `rest_after_insert{$post->post_type}`
-		// hook, this should work even with the Gutenberg editor.
-		$obj['tags'] = wp_get_post_tags( $wp_object->ID, array( 'fields' => 'names' ) ); // Returns an array of tag names.
-		$new_hash    = md5( wp_json_encode( $obj ) );
+		if ( null === $new_hash ) {
+			// Convert `$wp_object` to an array, but keep only the following
+			// properties.
+			$obj = array_filter(
+				(array) $wp_object,
+				function ( $key ) {
+					return in_array( $key, array( 'post_name', 'post_title', 'post_excerpt', 'post_content', 'post_type' ), true );
+				},
+				ARRAY_FILTER_USE_KEY
+			);
 
-		/** @todo: Add a filter to let developers calculate their own hash? Or look at the template tags in use? */
+			// Add in "current" tags. Thanks to our using the `rest_after_insert{$post->post_type}`
+			// hook, this *should work even with the Gutenberg editor*.
+			$obj['tags'] = wp_get_post_tags( $wp_object->ID, array( 'fields' => 'names' ) ); // Returns an array of tag names.
+			// Convert to JSONN string, then hash.
+			$new_hash = md5( wp_json_encode( $obj ) );
+		}
 
 		if ( $new_hash === $old_hash && '' !== $old_hash ) {
 			// Post wasn't changed. Don't federate.
-			error_log( '[Add-on for ActivityPub] Post hasn\'t actually changed.' );
 			return false;
 		}
 
