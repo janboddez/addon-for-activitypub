@@ -461,7 +461,7 @@ class Plugin {
 			return;
 		}
 
-		// Store these for a bit.
+		// We'll need these later on.
 		current_post_statuses( $post->ID, array( 'old' => $old_status, 'new' => $new_status ) );
 
 		// Unhook the original callback.
@@ -495,7 +495,9 @@ class Plugin {
 			return;
 		}
 
-		// Retrieve previously stored old and new statuses.
+		// Retrieve previously stored old and new statuses. Using a static var
+		// (rather than `wp_cache_set()` or similar) seemed like the more robust
+		// solution.
 		$status = current_post_statuses( $post->ID );
 		if ( ! $status ) {
 			return;
