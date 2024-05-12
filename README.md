@@ -28,7 +28,7 @@ Have (all) comments appear “unlisted.” (Not sure if this is in any way usefu
 Receive an email when an earlier “Fediverse” comment is modified.
 
 ### Limit Updates
-Don’t send Update activities when nothing’s changed.
+Don’t send Update activities when nothing’s changed. (Note that “nothing” is rather relative here. E.g., an Update might still get federated even if a post’s ActivityPub representation, which could contain only an excerpt, hasn’t actually changed, but the “real” post content did. Also, this whole thing might conflict with how you’ve set up ActivityPub, so beware.)
 
 ### Enable “Replies”
 While the ActivityPub plugin will “federate” your replies to “Fediverse” comments, it does not (yet) support outright replying to others’ posts.
@@ -56,6 +56,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 <?php echo apply_filters( 'the_content', $post->post_content ); ?>
 <p><a href="<?php echo esc_url( get_permalink( $post ) ); ?>"><?php echo esc_html( get_permalink( $post ) ); ?></a></p>
 ```
+The idea here is that you _could_ append custom fields and whatnot.
 
 ## User Profiles
 These are somewhat like the “post type templates” above.
