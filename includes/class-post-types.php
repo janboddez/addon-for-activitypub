@@ -36,8 +36,6 @@ class Post_Types {
 		add_action( 'pre_get_posts', array( __CLASS__, 'hide_from_collections' ) );
 		// Correct the total post count, for "featured" collections.
 		add_filter( 'get_usernumposts', array( __CLASS__, 'repair_count' ), 99, 2 );
-		// And disable "fetching" of reposts.
-		add_filter( 'template_include', array( __CLASS__, 'disable_fetch' ), 10 ); // Prio must be lower than `99`.
 	}
 
 	/**
@@ -369,18 +367,6 @@ class Post_Types {
 			return $array;
 		}
 
-		if ( 'activity' !== $class ) {
-			return $array;
-		}
-
-		if ( ! isset( $array['type'] ) ) {
-			return $array;
-		}
-
-		if ( ! in_array( $array['type'], array( 'Create', 'Update' ), true ) ) {
-			return $array;
-		}
-
 		$post_or_comment = get_object( $array, $class ); // Could probably also use `$id` or even `$object`, but this works.
 		if ( ! $post_or_comment ) {
 			return $array;
@@ -395,14 +381,43 @@ class Post_Types {
 			return $array;
 		}
 
-		$array['type']   = 'Announce';
-		$array['object'] = esc_url_raw( $url );
+		if (
+			'base_object' === $class ||
+			( 'activity' === $class && isset( $array['type'] ) && in_array( $array['type'], array( 'Create', 'Update' ), true ) )
+		) {
+			/**
+			 * Mastodon example:
+			 *
+			 * ```
+			 * array(
+			 *     '@context'  => 'https://www.w3.org/ns/activitystreams',
+			 *     'id'        => 'https://indieweb.social/users/janboddez/statuses/112475177142233425/activity',
+			 *     'type'      => 'Announce',
+			 *     'actor'     => 'https://indieweb.social/users/janboddez',
+			 *     'published' => '2024-05-20T19:56:42Z',
+			 *     'to'        => array( 'https://www.w3.org/ns/activitystreams#Public' ),
+			 *     'cc'        => array(
+			 *         'https://jan.boddez.net/author/jan',
+			 *         'https://indieweb.social/users/janboddez/followers',
+			 *     ),
+			 *     'object'    => 'https://jan.boddez.net/notes/39ed3b1cfb',
+			 * )
+			 * ```
+			 */
+			$array = array_intersect_key(
+				$array,
+				array_flip( array( '@context', 'id', 'type', 'actor', 'published', 'to', 'cc', 'object' ) )
+			);
 
-		if ( '' === get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', true ) ) {
-			// Store Announce activity, but don't override an existing one. The
-			// idea being that we need it, and it has to be accurate (?) to ever
-			// undo our reblog.
-			add_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', $array );
+			$array['type']   = 'Announce';
+			$array['object'] = esc_url_raw( $url );
+
+			if ( 'activity' === $class && '' === get_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', true ) ) {
+				// Store Announce activity, but don't override an existing one.
+				// The idea being that we need it, and it has to be accurate (?)
+				// to ever undo our reblog.
+				update_post_meta( $post_or_comment->ID, '_addon_for_activitypub_announce_activity', $array );
+			}
 		}
 
 		return $array;
