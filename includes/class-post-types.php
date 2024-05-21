@@ -391,7 +391,7 @@ class Post_Types {
 			 * ```
 			 * array(
 			 *     '@context'  => 'https://www.w3.org/ns/activitystreams',
-			 *     'id'        => 'https://indieweb.social/users/janboddez/statuses/112475177142233425/activity',
+			 *     'id'        => 'https://indieweb.social/users/janboddez/statuses/112475177142233425/activity', // The Announce activity JSON is actually served at this URL.
 			 *     'type'      => 'Announce',
 			 *     'actor'     => 'https://indieweb.social/users/janboddez',
 			 *     'published' => '2024-05-20T19:56:42Z',
@@ -408,6 +408,9 @@ class Post_Types {
 				$array,
 				array_flip( array( '@context', 'id', 'type', 'actor', 'published', 'to', 'cc', 'object' ) )
 			);
+
+			$array['id'] = strtok( $array['id'], '#' ) . '#activity';
+			strtok( '', '' );
 
 			$array['type']   = 'Announce';
 			$array['object'] = esc_url_raw( $url );
