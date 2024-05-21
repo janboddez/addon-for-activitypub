@@ -461,6 +461,13 @@ class Plugin {
 			return;
 		}
 
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$current_path = $_SERVER['REQUEST_URI'];
+		if ( 0 === strpos( $current_path, '/wp-json/micropub' ) ) {
+			// "Delay" for non-Micropub requests only.
+			return;
+		}
+
 		// We'll need these later on.
 		current_post_statuses( $post->ID, array( 'old' => $old_status, 'new' => $new_status ) );
 
