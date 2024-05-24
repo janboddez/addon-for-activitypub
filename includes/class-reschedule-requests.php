@@ -37,7 +37,7 @@ class Reschedule_Requests {
 
 		if ( false === $retries ) {
 			// Transient does not (yet) exist (or no longer exists).
-			set_transient( $transient, 3, DAY_IN_SECONDS );
+			set_transient( $transient, 3, HOUR_IN_SECONDS );
 
 			if ( false === wp_next_scheduled( 'addon_for_activitypub_resend_post', array( $url, $body, $user_id ) ) ) {
 				error_log( '[ActivityPub] Rescheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
