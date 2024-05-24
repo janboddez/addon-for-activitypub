@@ -55,6 +55,7 @@ class ComposerStaticInit627b648743a30f75cffded860aa949cb
         'AddonForActivityPub\\Options_Handler' => __DIR__ . '/../..' . '/../includes/class-options-handler.php',
         'AddonForActivityPub\\Plugin' => __DIR__ . '/../..' . '/../includes/class-plugin.php',
         'AddonForActivityPub\\Post_Types' => __DIR__ . '/../..' . '/../includes/class-post-types.php',
+        'AddonForActivityPub\\Reschedule_Requests' => __DIR__ . '/../..' . '/../includes/class-reschedule-requests.php',
         'AddonForActivityPub\\Templates' => __DIR__ . '/../..' . '/../includes/class-templates.php',
         'AddonForActivityPub\\zz\\Html\\HTMLMinify' => __DIR__ . '/..' . '/deruli/html-minifier/src/zz/Html/HTMLMinify.php',
         'AddonForActivityPub\\zz\\Html\\HTMLNames' => __DIR__ . '/..' . '/deruli/html-minifier/src/zz/Html/HTMLNames.php',

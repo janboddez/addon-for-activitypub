@@ -30,6 +30,7 @@ return array(
     'AddonForActivityPub\\Options_Handler' => $baseDir . '/../includes/class-options-handler.php',
     'AddonForActivityPub\\Plugin' => $baseDir . '/../includes/class-plugin.php',
     'AddonForActivityPub\\Post_Types' => $baseDir . '/../includes/class-post-types.php',
+    'AddonForActivityPub\\Reschedule_Requests' => $baseDir . '/../includes/class-reschedule-requests.php',
     'AddonForActivityPub\\Templates' => $baseDir . '/../includes/class-templates.php',
     'AddonForActivityPub\\zz\\Html\\HTMLMinify' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLMinify.php',
     'AddonForActivityPub\\zz\\Html\\HTMLNames' => $vendorDir . '/deruli/html-minifier/src/zz/Html/HTMLNames.php',

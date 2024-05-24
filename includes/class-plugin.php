@@ -56,6 +56,7 @@ class Plugin {
 
 		Post_Types::register();
 		Templates::register();
+		Reschedule_Requests::register();
 
 		// Don't `POST` local-only posts to followers (or anywhere).
 		add_filter( 'activitypub_send_activity_to_followers', array( $this, 'disable_federation' ), 99, 4 );
