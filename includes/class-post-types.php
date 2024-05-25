@@ -35,10 +35,12 @@ class Post_Types {
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_like' ), 999, 4 );
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_undo_like' ), 999, 4 );
 
-		// Don't send Announce activities when reposts are updated.
+		// Don't send Announce or Like activities when reposts or likes are updated.
 		add_filter( 'activitypub_send_activity_to_followers', array( __CLASS__, 'disable_federation' ), 999, 4 );
-		// Keep reposts out of "featured" collections. They can be in inboxes just fine.
+
+		// Keep reposts and likes out of "featured" collections. They can be in outboxes just fine.
 		add_action( 'pre_get_posts', array( __CLASS__, 'hide_from_collections' ) );
+
 		// Correct the total post count, for "featured" collections.
 		add_filter( 'get_usernumposts', array( __CLASS__, 'repair_count' ), 99, 2 );
 	}
@@ -575,7 +577,7 @@ class Post_Types {
 	}
 
 	/**
-	 * Disables federation of repost updates.
+	 * Disables federation of repost/like *updates*.
 	 *
 	 * @param  bool                           $send      Whether we should post to followers' inboxes.
 	 * @param  \Activitypub\Activity\Activity $activity  Activity object.
@@ -592,9 +594,10 @@ class Post_Types {
 			return $send;
 		}
 
-		$url = get_post_meta( $wp_object->ID, '_addon_for_activitypub_repost_of_url', true );
-		if ( empty( $url ) ) {
-			// Leave non-reposts alone.
+		$repost_of_url = get_post_meta( $wp_object->ID, '_addon_for_activitypub_repost_of_url', true );
+		$like_of_url   = get_post_meta( $wp_object->ID, '_addon_for_activitypub_like_of_url', true );
+		if ( empty( $repost_of_url ) && empty( $like_of_url ) ) {
+			// Leave posts that aren't either reposts or likes alone.
 			return $send;
 		}
 
@@ -602,9 +605,7 @@ class Post_Types {
 	}
 
 	/**
-	 * Keeps reposts out of featured post collections.
-	 *
-	 * @todo: Remove also reposts *from featured post collections*. It's okay for them to stay in outboxes.
+	 * Keeps reposts/likes out of featured post collections, and likes out of outboxes.
 	 *
 	 * @param \WP_Query $query Database query object.
 	 */
@@ -626,25 +627,57 @@ class Post_Types {
 			return;
 		}
 
-		if ( false === strpos( $current_path, 'collections/featured' ) ) {
-			return;
+		if ( false !== strpos( $current_path, 'collections/featured' ) ) {
+			// Include only posts without a `repost-of` URL *and* without a
+			// `like-of` URL.
+			$query->set(
+				'meta_query',
+				array(
+					'relation' => 'AND',
+					array(
+						'relation' => 'OR',
+						array(
+							'key'     => '_addon_for_activitypub_repost_of_url',
+							'compare' => 'NOT EXISTS',
+						),
+						array(
+							'key'     => '_addon_for_activitypub_repost_of_url',
+							'compare' => '=',
+							'value'   => '',
+						),
+					),
+					array(
+						'relation' => 'OR',
+						array(
+							'key'     => '_addon_for_activitypub_like_of_url',
+							'compare' => 'NOT EXISTS',
+						),
+						array(
+							'key'     => '_addon_for_activitypub_like_of_url',
+							'compare' => '=',
+							'value'   => '',
+						),
+					),
+				)
+			);
+		} elseif ( false !== strpos( $current_path, 'outbox' ) ) {
+			// Include only posts without a `like-of` URL.
+			$query->set(
+				'meta_query',
+				array(
+					'relation' => 'OR',
+					array(
+						'key'     => '_addon_for_activitypub_like_of_url',
+						'compare' => 'NOT EXISTS',
+					),
+					array(
+						'key'     => '_addon_for_activitypub_like_of_url',
+						'compare' => '=',
+						'value'   => '',
+					),
+				)
+			);
 		}
-
-		$query->set(
-			'meta_query',
-			array(
-				'relation' => 'OR',
-				array(
-					'key'     => '_addon_for_activitypub_repost_of_url',
-					'compare' => 'NOT EXISTS',
-				),
-				array(
-					'key'     => '_addon_for_activitypub_repost_of_url',
-					'compare' => '=',
-					'value'   => '',
-				),
-			)
-		);
 	}
 
 	/**
