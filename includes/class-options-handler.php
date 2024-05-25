@@ -37,6 +37,10 @@ class Options_Handler {
 			'type'    => 'boolean',
 			'default' => false,
 		),
+		'enable_likes'       => array(
+			'type'    => 'boolean',
+			'default' => false,
+		),
 		'cache_avatars'      => array(
 			'type'    => 'boolean',
 			'default' => false,
@@ -141,6 +145,7 @@ class Options_Handler {
 			'limit_updates'      => isset( $settings['limit_updates'] ) ? true : false,
 			'enable_replies'     => isset( $settings['enable_replies'] ) ? true : false,
 			'enable_reposts'     => isset( $settings['enable_reposts'] ) ? true : false,
+			'enable_likes'       => isset( $settings['enable_likes'] ) ? true : false,
 			'cache_avatars'      => isset( $settings['cache_avatars'] ) ? true : false,
 			'proxy_avatars'      => isset( $settings['proxy_avatars'] ) ? true : false,
 		);
@@ -248,6 +253,11 @@ class Options_Handler {
 						<th scope="row"><?php esc_html_e( 'Enable “Reposts”', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_reposts]" value="1" <?php checked( ! empty( $this->options['enable_reposts'] ) ); ?>/> <?php esc_html_e( 'Enable “reposts”', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “reposts” in “proper Fediverse ‘reblogs.’”', 'addon-for-activitypub' ); ?></p></td>
+					</tr>
+					<tr valign="top">
+						<th scope="row"><?php esc_html_e( 'Enable Likes', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_likes]" value="1" <?php checked( ! empty( $this->options['enable_likes'] ) ); ?>/> <?php esc_html_e( 'Enable “likes”', 'addon-for-activitypub' ); ?></label>
+						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “likes” in “proper Fediverse ‘likes.’”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 					<?php if ( function_exists( '\\IndieBlocks\\store_image' ) ) : ?>
 						<tr valign="top">
