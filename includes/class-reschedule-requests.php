@@ -30,7 +30,7 @@ class Reschedule_Requests {
 			return;
 		}
 
-		error_log( '[ActivityPub] Error posting to ' . esc_url_raw( $url ) . ': ' . var_export( $response, true ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
+		error_log( '[Add-on for ActivityPub] Error posting to ' . esc_url_raw( $url ) . ': ' . var_export( $response, true ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
 
 		$transient = 'addon-for-activitypub:retries:' . md5( 'url:' . $url . ';body:' . $body . ';user_id:' . $user_id );
 		$retries   = get_transient( $transient );
@@ -40,22 +40,24 @@ class Reschedule_Requests {
 			set_transient( $transient, 3, HOUR_IN_SECONDS );
 
 			if ( false === wp_next_scheduled( 'addon_for_activitypub_resend_post', array( $url, $body, $user_id ) ) ) {
-				error_log( '[ActivityPub] Rescheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
+				error_log( '[Add-on for ActivityPub] Rescheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
 				wp_schedule_single_event( time() + 120, 'addon_for_activitypub_resend_post', array( $url, $body, $user_id ) );
 			}
 		} elseif ( $retries > 0 ) {
 			// Some retries to go.
 			if ( false === wp_next_scheduled( 'addon_for_activitypub_resend_post', array( $url, $body, $user_id ) ) ) {
-				error_log( '[ActivityPub] Rescheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
+				error_log( '[Add-on for ActivityPub] Rescheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
 				wp_schedule_single_event( time() + 120, 'addon_for_activitypub_resend_post', array( $url, $body, $user_id ) );
 			}
 		} else {
 			// Retries must be `0`.
+			error_log( '[Add-on for ActivityPub] We\'re done with this one.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 			delete_transient( $transient ); // Forget about it.
 
 			$timestamp = wp_next_scheduled( 'addon_for_activitypub_reschedule_post', array( $url, $body, $user_id ) );
 			if ( false !== $timestamp ) {
-				error_log( '[ActivityPub] Unscheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
+				// Should probably never happen.
+				error_log( '[Add-on for ActivityPub] Unscheduling ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log,WordPress.PHP.DevelopmentFunctions.error_log_var_export
 				wp_unschedule_event( $timestamp, 'addon_for_activitypub_reschedule_post', array( $url, $body, $user_id ) );
 			}
 		}
@@ -86,10 +88,10 @@ class Reschedule_Requests {
 			set_transient( $transient, $retries, DAY_IN_SECONDS );
 		}
 
-		error_log( '[ActivityPub] Resending ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( '[Add-on for ActivityPub] Resending ...' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 
 		\Activitypub\Http::post( $url, $body, $user_id );
 
-		error_log( '[ActivityPub] Retries left: ' . $retries ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
+		error_log( "[Add-on for ActivityPub] Retries left: $retries." ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 	}
 }
