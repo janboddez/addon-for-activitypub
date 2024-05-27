@@ -34,7 +34,6 @@ function get_object( $array, $class ) { // phpcs:ignore Universal.NamingConventi
 	}
 
 	if ( empty( $object_id ) ) {
-		error_log( "[Add-on for ActivityPub] Couldn't find object ID." ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
 		return null;
 	}
 
