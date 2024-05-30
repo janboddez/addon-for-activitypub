@@ -102,10 +102,9 @@ class Limit_Updates {
 			return $array;
 		}
 
-		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$current_path = $_SERVER['REQUEST_URI'];
-		if ( defined( 'REST_REQUEST' ) && REST_REQUEST && 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
-			// Leave, e.g., outboxes alone. Mostly.
+		if ( is_activitypub() ) {
+			// If this is a REST request (and not us federating), only include
+			// `updated` when it actually adds something.
 			if ( ! empty( $array['published'] ) && ! empty( $array['updated'] ) && $array['published'] === $array['updated'] ) {
 				unset( $array['updated'] );
 			}

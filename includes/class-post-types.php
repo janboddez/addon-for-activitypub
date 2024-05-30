@@ -617,17 +617,12 @@ class Post_Types {
 		// }
 		// @codingStandardsIgnoreEnd
 
-		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+		if ( ! is_activitypub() ) {
 			return;
 		}
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$current_path = $_SERVER['REQUEST_URI'];
-		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
-			return;
-		}
-
-		if ( false !== strpos( $current_path, 'collections/featured' ) ) {
+		if ( false !== strpos( $_SERVER['REQUEST_URI'], 'collections' ) ) {
 			// Include only posts without a `repost-of` URL *and* without a
 			// `like-of` URL.
 			$query->set(
@@ -660,8 +655,9 @@ class Post_Types {
 					),
 				)
 			);
-		} elseif ( false !== strpos( $current_path, 'outbox' ) ) {
-			// Include only posts without a `like-of` URL.
+		} elseif ( false !== strpos( $_SERVER['REQUEST_URI'], 'outbox' ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			// Include only posts without a `like-of` URL (we allow reposts in
+			// outboxes).
 			$query->set(
 				'meta_query',
 				array(
@@ -690,17 +686,19 @@ class Post_Types {
 	 */
 	public static function repair_count( $count, $user_id ) {
 		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+			// Not a REST request.
+			return $count;
+		}
+
+		if ( ! is_activitypub() ) {
+			// Not an ActivityPub REST request.
 			return $count;
 		}
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$current_path = $_SERVER['REQUEST_URI'];
-		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
-			return;
-		}
-
-		if ( false === strpos( $current_path, 'collections/featured' ) ) {
-			return;
+		if ( false === strpos( $_SERVER['REQUEST_URI'], 'collections' ) ) {
+			// Not a collection.
+			return $count;
 		}
 
 		$post_types = get_post_types_by_support( 'activitypub' );

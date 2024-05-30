@@ -146,3 +146,23 @@ function current_post_statuses( $post_id, $value = null ) {
 
 	return null;
 }
+
+/**
+ * Stores a post's "old" and "new" status for the duration of the request.
+ *
+ * Used to "forward" the status arguments of `transition_post_status` to
+ * `rest_after_insert{$post->post_type}`.
+ *
+ * @return bool Whether the current request is for an ActivityPub endpoint.
+ */
+function is_activitypub() {
+	if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+		// Not a REST request.
+		return false;
+	}
+
+	// error_log( trailingslashit( rest_get_url_prefix() ) . ACTIVITYPUB_REST_NAMESPACE );
+
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+	return ( false !== strpos( $_SERVER['REQUEST_URI'], trailingslashit( rest_get_url_prefix() ) . ACTIVITYPUB_REST_NAMESPACE ) );
+}

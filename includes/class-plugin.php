@@ -169,8 +169,6 @@ class Plugin {
 	/**
 	 * Keeps local-only posts out of outboxes and featured post collections.
 	 *
-	 * @todo: Remove also reposts *from featured post collections*. It's okay for them to stay in outboxes.
-	 *
 	 * @param \WP_Query $query Database query object.
 	 */
 	public function hide_from_collections( $query ) {
@@ -182,16 +180,18 @@ class Plugin {
 		// @codingStandardsIgnoreEnd
 
 		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+			// Not a REST request.
+			return;
+		}
+
+		if ( ! is_activitypub() ) {
+			// Not an ActivityPub REST request.
 			return;
 		}
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$current_path = $_SERVER['REQUEST_URI'];
-		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
-			return;
-		}
-
-		if ( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) ) {
+		if ( false === strpos( $_SERVER['REQUEST_URI'], 'outbox' ) && false === strpos( $_SERVER['REQUEST_URI'], 'collections' ) ) {
+			// Neither an outbox nor a collection request.
 			return;
 		}
 
@@ -216,18 +216,15 @@ class Plugin {
 	 * @return int             Filtered post count.
 	 */
 	public function repair_count( $count, $user_id ) {
-		if ( ! defined( 'REST_REQUEST' ) || ! REST_REQUEST ) {
+		if ( ! is_activitypub() ) {
+			// Not an ActivityPub REST request.
 			return $count;
 		}
 
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
-		$current_path = $_SERVER['REQUEST_URI'];
-		if ( 0 !== strpos( $current_path, '/wp-json/activitypub' ) ) {
-			return;
-		}
-
-		if ( false === strpos( $current_path, 'outbox' ) && false === strpos( $current_path, 'collections' ) ) {
-			return;
+		if ( false === strpos( $_SERVER['REQUEST_URI'], 'outbox' ) && false === strpos( $_SERVER['REQUEST_URI'], 'collections' ) ) {
+			// Neither an outbox nor a collection request.
+			return $count;
 		}
 
 		$options = get_options();
@@ -249,7 +246,7 @@ class Plugin {
 			'fields'              => 'id',
 			'post_type'           => $post_types,
 			'post_status'         => 'publish', // Public only.
-			'category__not_in'    => $category->term_id,
+			'category__not_in'    => $category->term_id, // Exclude local-only posts.
 			'posts_per_page'      => -1,
 			'ignore_sticky_posts' => 1,
 		);
