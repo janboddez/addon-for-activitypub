@@ -89,9 +89,8 @@ class Plugin {
 			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 999, 3 );
 		}
 
-		// We *have to* "delay" federation until the REST API has processed
-		// categories and the like, for our "local-only" category to work
-		// reliably.
+		// We *have to* "delay" federation until the REST API has processed categories and the like, for our
+		// "local-only" category to work reliably.
 		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
 	}
 
@@ -285,16 +284,14 @@ class Plugin {
 			isset( $options['unlisted_cat'] ) && '' !== $options['unlisted_cat'] &&
 			has_category( $options['unlisted_cat'], $post_or_comment->ID )
 		) {
-			// Show posts in a certain category as "unlisted." If somehow that's
-			// not enough, there's the filter below.
+			// Show posts in a certain category as "unlisted." If somehow that's not enough, there's the filter below.
 			$is_unlisted = true;
 		} elseif ( $post_or_comment instanceof \WP_Comment && ! empty( $options['unlisted_comments'] ) ) {
 			// "Unlist" all comments.
 			$is_unlisted = true;
 		}
 
-		// Let others filter the "unlisted" attribute. Like, one could check for
-		// certain post formats and whatnot.
+		// Let others filter the "unlisted" attribute. Like, one could check for certain post formats and whatnot.
 		if ( apply_filters( 'addon_for_activitypub_is_unlisted', $is_unlisted, $post_or_comment ) ) {
 			$to = isset( $array['to'] ) ? $array['to'] : array();
 			$cc = isset( $array['cc'] ) ? $array['cc'] : array();
@@ -361,23 +358,26 @@ class Plugin {
 			return $commentdata;
 		}
 
-		$url      = $commentdata['comment_meta']['avatar_url'];
-		$hash     = hash( 'sha256', esc_url_raw( $url ) ); // Create a (hopefully) unique, "reasonably short" filename.
+		// Image URL.
+		$url = $commentdata['comment_meta']['avatar_url'];
+
+		// Create a unique, "reasonably short" filename. We prefer using an actor URL over their actual avatar URL, as
+		// the latter may change, which would prevent outdated avatars from being updated (i.e., overwritten).
+		$hash = hash(
+			'sha256',
+			! empty( $commentdata['comment_author_url'] )
+				? $commentdata['comment_author_url']
+				: $url
+		);
+
 		$ext      = pathinfo( $url, PATHINFO_EXTENSION );
 		$filename = $hash . ( ! empty( $ext ) ? '.' . $ext : '' ); // Add a file extension if there was one.
 
-		$dir = 'activitypub-avatars'; // The folder we're saving our avatars to.
+		$dir  = 'activitypub-avatars'; // The folder we're saving our avatars to.
+		$dir .= '/' . substr( $hash, 0, 2 ); // To somewhat "spread out" the images over various subfolders.
 
-		$upload_dir = wp_upload_dir();
-		if ( ! empty( $upload_dir['subdir'] ) ) {
-			// Add month and year, to be able to keep track of things. This will
-			// lead to duplicate files (for comments created in a different
-			// month), but so be it.
-			$dir .= '/' . trim( $upload_dir['subdir'], '/' );
-		}
-
-		// Make cache directory filterable. Like, if a site owner did not want
-		// the month and year in there, they could do so.
+		// Make cache directory filterable. Like, if a site owner did not want the month and year in there, they could
+		// do so.
 		$dir = apply_filters( 'addon_for_activitypub_avatar_dir', $dir, $url );
 
 		$local_url = \IndieBlocks\store_image( $url, $filename, $dir ); // Attempt to store and resize the avatar.
@@ -389,8 +389,7 @@ class Plugin {
 	}
 
 	/**
-	 * Runs previously stored avatar URLs through IndieBlocks "reverse image
-	 * proxy."
+	 * Runs previously stored avatar URLs through IndieBlocks "reverse image proxy."
 	 *
 	 * Requires the IndieBlocks plugin (for now).
 	 *
@@ -407,10 +406,8 @@ class Plugin {
 			return $args;
 		}
 
-		// Because ActivityPub uses `pre_get_avatar_data` and, in its callback,
-		// sets a `url`, the rest of core's `get_avatar_data()` is skipped.
-		// Instead `$args` is returned early, but not without being filtered
-		// first.
+		// Because ActivityPub uses `pre_get_avatar_data` and, in its callback, sets a `url`, the rest of core's
+		// `get_avatar_data()` is skipped. Instead `$args` is returned early, but not without being filtered first.
 		if ( ! $id_or_email instanceof \WP_Comment ) {
 			return $args;
 		}
@@ -448,9 +445,8 @@ class Plugin {
 		}
 
 		if ( 'publish' !== $new_status ) {
-			// We "delay" creates and updates only, and both require a post
-			// that's published. If we didn't check this, drafts would get
-			// federated, too.
+			// We "delay" creates and updates only, and both require a post that's published. If we didn't check this,
+			// drafts would get federated, too.
 			return;
 		}
 
@@ -495,14 +491,12 @@ class Plugin {
 		}
 
 		if ( 'publish' !== $post->post_status ) {
-			// Avoid federating non-published posts. Remember that we don't deal
-			// with deletes here.
+			// Avoid federating non-published posts. Remember that we don't deal with deletes here.
 			return;
 		}
 
-		// Retrieve previously stored old and new statuses. Using a static var
-		// (rather than `wp_cache_set()` or similar) seemed like the more robust
-		// solution.
+		// Retrieve previously stored old and new statuses. Using a static var (rather than `wp_cache_set()` or similar)
+		// seemed like the more robust solution.
 		$status = current_post_statuses( $post->ID );
 		if ( ! $status ) {
 			return;
