@@ -49,6 +49,10 @@ class Options_Handler {
 			'type'    => 'boolean',
 			'default' => false,
 		),
+		'close_comments'     => array(
+			'type'    => 'integer',
+			'default' => 0,
+		),
 	);
 
 	/**
@@ -148,6 +152,9 @@ class Options_Handler {
 			'enable_likes'       => isset( $settings['enable_likes'] ) ? true : false,
 			'cache_avatars'      => isset( $settings['cache_avatars'] ) ? true : false,
 			'proxy_avatars'      => isset( $settings['proxy_avatars'] ) ? true : false,
+			'close_comments'     => isset( $settings['close_comments'] ) && ctype_digit( $settings['close_comments'] )
+				? (int) $settings['close_comments']
+				: 0,
 		);
 
 		$this->options = array_merge( $this->options, $options );
@@ -275,6 +282,18 @@ class Options_Handler {
 						</tr>
 					<?php endif; ?>
 
+					<tr valign="top">
+						<th scope="row"><label for="addon_for_activitypub_settings[close_comments]"><?php esc_html_e( 'Close Comments', 'addon-for-activitypub' ); ?></th>
+						<td>
+							<?php
+							printf(
+								/* translators: %s: number field */
+								esc_html__( 'Close comments after %s days', 'addon-for-activitypub' ),
+								'<input type="number" class="small-text" min="0" step="1" name="addon_for_activitypub_settings[close_comments]" id="addon_for_activitypub_settings[close_comments]" value="' . ( isset( $this->options['close_comments'] ) ? (int) $this->options['close_comments'] : '0' ) . '" />'
+							);
+							?>
+						</td>
+					</tr>
 				</table>
 				<p class="submit"><?php submit_button( __( 'Save Changes' ), 'primary', 'submit', false ); ?></p>
 			</form>

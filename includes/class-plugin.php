@@ -89,6 +89,10 @@ class Plugin {
 			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 999, 3 );
 		}
 
+		if ( ! empty( $options['close_comments'] ) ) {
+			add_filter( 'pre_comment_approved', array( $this, 'close_comments' ), 999, 2 );
+		}
+
 		// We *have to* "delay" federation until the REST API has processed categories and the like, for our
 		// "local-only" category to work reliably.
 		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
@@ -421,6 +425,36 @@ class Plugin {
 		}
 
 		return $args;
+	}
+
+	/**
+	 * Returns an instance of `\WP_Error` when "ActivityPub" comments are closed, causing the comment to be dropped.
+	 *
+	 * @param  int|string|\WP_Error $approved    Approval status.
+	 * @param  array                $commentdata Comment data.
+	 * @return int|string|WP_Error               Filtered approval status.
+	 */
+	public function close_comments( $approved, $commentdata ) {
+		if ( empty( $commentdata['comment_post_ID'] ) ) {
+			return $approved;
+		}
+
+		$options = get_options();
+		if ( empty( $options['close_comments'] ) ) {
+			return $approved;
+		}
+
+		$post_time = get_post_time( 'U', true, $commentdata['comment_post_ID'] );
+
+		if ( false === $post_time ) {
+			return $approved;
+		}
+
+		if ( $post_time >= time() - $options['close_comments'] * DAY_IN_SECONDS ) {
+			return $approved;
+		}
+
+		return \WP_Error( 'comments_closed', __( 'Comments are closed.', 'addon-for-activitypub' ) );
 	}
 
 	/**
