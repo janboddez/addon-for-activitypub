@@ -288,7 +288,7 @@ class Options_Handler {
 							<?php
 							printf(
 								/* translators: %s: number field */
-								esc_html__( 'Close comments after %s days', 'addon-for-activitypub' ),
+								esc_html__( 'Automatically close comments on posts older than %s days', 'addon-for-activitypub' ),
 								'<input type="number" class="small-text" min="0" step="1" name="addon_for_activitypub_settings[close_comments]" id="addon_for_activitypub_settings[close_comments]" value="' . ( isset( $this->options['close_comments'] ) ? (int) $this->options['close_comments'] : '0' ) . '" />'
 							);
 							?>
