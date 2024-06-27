@@ -431,7 +431,7 @@ class Plugin {
 	 *
 	 * @param  int|string|\WP_Error $approved    Approval status.
 	 * @param  array                $commentdata Comment data.
-	 * @return int|string|WP_Error               Filtered approval status.
+	 * @return int|string|\WP_Error              Filtered approval status.
 	 */
 	public function close_comments( $approved, $commentdata ) {
 		if ( empty( $commentdata['comment_post_ID'] ) ) {
