@@ -89,9 +89,8 @@ class Plugin {
 			add_filter( 'get_avatar_data', array( $this, 'proxy_avatar' ), 999, 3 );
 		}
 
-		if ( ! empty( $options['close_comments'] ) ) {
-			add_filter( 'pre_comment_approved', array( $this, 'close_comments' ), 999, 2 );
-		}
+		// Close comments on "older" posts.
+		add_filter( 'pre_comment_approved', array( $this, 'close_comments' ), 999, 2 );
 
 		// We *have to* "delay" federation until the REST API has processed categories and the like, for our
 		// "local-only" category to work reliably.
