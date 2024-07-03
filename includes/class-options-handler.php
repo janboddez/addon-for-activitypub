@@ -152,7 +152,7 @@ class Options_Handler {
 			'enable_likes'       => isset( $settings['enable_likes'] ) ? true : false,
 			'cache_avatars'      => isset( $settings['cache_avatars'] ) ? true : false,
 			'proxy_avatars'      => isset( $settings['proxy_avatars'] ) ? true : false,
-			'close_comments'     => isset( $settings['close_comments'] ) && ctype_digit( $settings['close_comments'] )
+			'close_comments'     => isset( $settings['close_comments'] ) && ctype_digit( (string) $settings['close_comments'] )
 				? (int) $settings['close_comments']
 				: 0,
 		);
