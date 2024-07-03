@@ -7,7 +7,7 @@ All features can be switched on or off separately. All of this is subject to cha
 ### Local-only Category
 Posts (of any post type, as long as it supports WordPress’ built-in categories) in this category will not get “federated” and remain “local-only.”
 
-It's currently not possible to otherwise (i.e., by post format or a certain custom field) “set” local-only posts. Reason is the advanced queries needed to disable “content negotation” for such posts, and keep them out of, e.g., your ActivityPub outbox. Still, categories seem to work just fine.
+It's currently not possible to use, e.g., post formats or a certain custom field to “set” local-only posts. Reason is the advanced queries needed to disable “content negotation” for such posts, and keep them out of, e.g., your ActivityPub outbox. (I might eventually add a sidebar panel/meta box with a “Federate” checkbox, but for now, it’s categories only.)
 
 ### Unlisted Category
 Posts in this category will appear “unlisted” (or “less public”) on various Fediverse instances. (Whether you also hide these posts on, e.g., your site’s homepage, is up to you!)
