@@ -570,6 +570,10 @@ class Plugin {
 			return;
 		}
 
+		if ( ! class_exists( '\\Activitypub\\Comment' ) || ! method_exists( \Activitypub\Comment::class, 'object_id_to_comment' ) ) {
+			return;
+		}
+
 		if ( empty( $array['object'] ) && empty( $array['object']['id'] ) ) {
 			return;
 		}
@@ -611,10 +615,6 @@ class Plugin {
 		}
 
 		if ( ! class_exists( '\\Activitypub\\Comment' ) || ! method_exists( \Activitypub\Comment::class, 'object_id_to_comment' ) ) {
-			return;
-		}
-
-		if ( empty( $array['object']['object'] ) && empty( $array['object']['object']['id'] ) ) {
 			return;
 		}
 
