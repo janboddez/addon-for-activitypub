@@ -682,7 +682,7 @@ class Plugin {
 			'comment_parent'       => $parent_comment_id ? $parent_comment_id : 0,
 			'comment_meta'         => array(
 				'source_id'                     => esc_url_raw( $activity['id'] ), // To be able to detect existing comments.
-				'protocol'                      => 'activitypub', // So we can avatars cached (hoping it doesn't break anything else).
+				'protocol'                      => 'activitypub', // So we can cache avatars (hoping it doesn't break anything else).
 				'indieblocks_webmention_source' => esc_url_raw( $activity['id'] ), // To allow IndieBlocks' Facepile block to "link" someplace.
 				'indieblocks_webmention_target' => esc_url_raw( $url ), // Just because.
 				'indieblocks_webmention_kind'   => 'like', // Because otherwise IndieBlocks' Facepile block wouldn't pick it up. Could also set `comment_type`, like the Webmention plugin would.
