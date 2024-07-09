@@ -96,9 +96,10 @@ class Plugin {
 		// "local-only" category to work reliably.
 		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
 
-		// Support incoming likes.
+		// Support incoming likes and reposts.
 		add_action( 'activitypub_inbox_like', array( $this, 'handle_like' ), 10, 2 );
-		add_action( 'activitypub_inbox_undo', array( $this, 'handle_undo_like' ), 10, 2 );
+		add_action( 'activitypub_inbox_announce', array( $this, 'handle_announce' ), 10, 2 );
+		add_action( 'activitypub_inbox_undo', array( $this, 'handle_undo' ), 10, 2 );
 	}
 
 	/**
@@ -593,7 +594,7 @@ class Plugin {
 			return;
 		}
 
-		$state    = $this->add_like( $array, $url );
+		$state    = $this->add_like_or_repost( $array, $url, 'like' );
 		$reaction = null;
 
 		if ( $state && ! is_wp_error( $state ) ) {
@@ -604,12 +605,12 @@ class Plugin {
 	}
 
 	/**
-	 * Handles incoming undoes of a like.
+	 * Handles incoming reposts.
 	 *
 	 * @param array $array   Activity array.
 	 * @param int   $user_id User ID.
 	 */
-	public function handle_undo_like( $array, $user_id ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound
+	public function handle_announce( $array, $user_id ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound
 		if ( defined( 'ACTIVITYPUB_DISABLE_INCOMING_INTERACTIONS' ) && ACTIVITYPUB_DISABLE_INCOMING_INTERACTIONS ) {
 			return;
 		}
@@ -618,16 +619,69 @@ class Plugin {
 			return;
 		}
 
-		if ( empty( $array['object']['type'] ) || 'Like' !== $array['object']['type'] ) {
+		if ( empty( $array['object'] ) && empty( $array['object']['id'] ) ) {
+			return;
+		}
+
+		if ( ! empty( $array['object'] ) && filter_var( $array['object'], FILTER_VALIDATE_URL ) ) {
+			$url = $array['object'];
+		} elseif ( ! empty( $array['object']['id'] ) && filter_var( $array['object']['id'], FILTER_VALIDATE_URL ) ) {
+			$url = $array['object']['id'];
+		}
+
+		if ( empty( $url ) ) {
+			return;
+		}
+
+		$exists = \Activitypub\Comment::object_id_to_comment( esc_url_raw( $url ) );
+		if ( $exists ) {
+			return;
+		}
+
+		$state = $this->add_like_or_repost( $array, $url, 'repost' );
+
+		if ( $state && ! is_wp_error( $state ) ) {
+			$reaction = get_comment( $state );
+		}
+
+		do_action( 'activitypub_handled_announce', $array, $user_id, $state, isset( $reaction ) ? $reaction : null );
+	}
+
+	/**
+	 * Handles incoming undoes of a like or repost.
+	 *
+	 * @param array $array   Activity array.
+	 * @param int   $user_id User ID.
+	 */
+	public function handle_undo( $array, $user_id ) { // phpcs:ignore Universal.NamingConventions.NoReservedKeywordParameterNames.arrayFound,Universal.NamingConventions.NoReservedKeywordParameterNames.objectFound
+		if ( defined( 'ACTIVITYPUB_DISABLE_INCOMING_INTERACTIONS' ) && ACTIVITYPUB_DISABLE_INCOMING_INTERACTIONS ) {
+			return;
+		}
+
+		if ( ! class_exists( '\\Activitypub\\Comment' ) || ! method_exists( \Activitypub\Comment::class, 'object_id_to_comment' ) ) {
+			return;
+		}
+
+		if ( empty( $array['object']['type'] ) ) {
+			// We'll need this later on.
 			return;
 		}
 
 		if ( ! empty( $array['object']['id'] ) && filter_var( $array['object']['id'], FILTER_VALIDATE_URL ) ) {
-			$exists = \Activitypub\Comment::object_id_to_comment( esc_url_raw( $array['object']['id'] ) );
-			if ( $exists ) {
-				$state = wp_trash_comment( $exists );
-			}
+			$comment = \Activitypub\Comment::object_id_to_comment( esc_url_raw( $array['object']['id'] ) );
+		}
 
+		if ( empty( $comment ) ) {
+			return;
+		}
+
+		if ( 'Like' === $array['object']['type'] && 'like' === get_comment_meta( $comment->comment_ID, 'indieblocks_webmention_kind', true ) ) {
+			$state = wp_trash_comment( $comment );
+		} elseif ( 'Announce' === $array['object']['type'] && 'repost' === get_comment_meta( $comment->comment_ID, 'indieblocks_webmention_kind', true ) ) {
+			$state = wp_trash_comment( $comment );
+		}
+
+		if ( ! empty( $state ) ) {
 			do_action( 'activitypub_handled_undo', $array, $user_id, isset( $state ) ? $state : null, null );
 		}
 	}
@@ -637,9 +691,10 @@ class Plugin {
 	 *
 	 * @param  array  $activity Activity array.
 	 * @param  string $url      Object URL.
+	 * @param  string $type     `'like'` or `'repost'`.
 	 * @return array|false      Comment data or `false` on failure.
 	 */
-	protected function add_like( $activity, $url ) {
+	protected function add_like_or_repost( $activity, $url, $type ) {
 		if ( ! function_exists( '\\Activitypub\\url_to_commentid' ) ) {
 			return;
 		}
@@ -672,20 +727,30 @@ class Plugin {
 			return false;
 		}
 
+		switch ( $type ) {
+			case 'like':
+				$comment_content = __( '&hellip; liked this!', 'addon-for-activitypub' );
+				break;
+
+			case 'repost':
+				$comment_content = __( '&hellip; reposted this!', 'addon-for-activitypub' );
+				break;
+		}
+
 		$commentdata = array(
 			'comment_post_ID'      => $comment_post_id,
 			'comment_author'       => isset( $meta['name'] ) ? \esc_attr( $meta['name'] ) : \esc_attr( $meta['preferredUsername'] ),
 			'comment_author_url'   => esc_url_raw( \Activitypub\object_to_uri( $meta['url'] ) ),
-			'comment_content'      => __( '&hellip; liked this!', 'addon-for-activitypub' ),
+			'comment_content'      => $comment_content,
 			'comment_type'         => '',
 			'comment_author_email' => '',
 			'comment_parent'       => $parent_comment_id ? $parent_comment_id : 0,
 			'comment_meta'         => array(
 				'source_id'                     => esc_url_raw( $activity['id'] ), // To be able to detect existing comments.
 				'protocol'                      => 'activitypub', // So we can cache avatars (hoping it doesn't break anything else).
-				'indieblocks_webmention_source' => esc_url_raw( $activity['id'] ), // To allow IndieBlocks' Facepile block to "link" someplace.
+				'indieblocks_webmention_source' => esc_url_raw( \Activitypub\object_to_uri( $meta['url'] ) ), // To allow IndieBlocks' Facepile block to "link" someplace.
 				'indieblocks_webmention_target' => esc_url_raw( $url ), // Just because.
-				'indieblocks_webmention_kind'   => 'like', // Because otherwise IndieBlocks' Facepile block wouldn't pick it up. Could also set `comment_type`, like the Webmention plugin would.
+				'indieblocks_webmention_kind'   => $type, // Because otherwise IndieBlocks' Facepile block wouldn't pick it up. Could also set `comment_type`, like the Webmention plugin would.
 			),
 		);
 
