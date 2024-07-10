@@ -773,15 +773,7 @@ class Plugin {
 			}
 		);
 
-		if ( class_exists( '\\Activitypub\\Collection\\Interactions' ) && method_exists( \Activitypub\Collection\Interactions::class, 'allowed_comment_html' ) ) {
-			$added = add_filter( 'wp_kses_allowed_html', array( \Activitypub\Interactions::class, 'allowed_comment_html' ), 10, 2 );
-		}
-
 		$comment = wp_new_comment( $commentdata, true );
-
-		if ( ! empty( $added ) ) {
-			remove_filter( 'wp_kses_allowed_html', array( \Activitypub\Collection\Interactions::class, 'allowed_comment_html' ), 10 );
-		}
 
 		// Re-add flood control.
 		add_action( 'check_comment_flood', 'check_comment_flood_db', 10, 4 );
