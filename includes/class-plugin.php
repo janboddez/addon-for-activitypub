@@ -54,6 +54,7 @@ class Plugin {
 		$this->options_handler = new Options_Handler();
 		$this->options_handler->register();
 
+		Comments::register();
 		Post_Types::register();
 		Templates::register();
 		Reschedule_Requests::register();

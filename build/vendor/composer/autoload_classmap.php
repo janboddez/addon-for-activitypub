@@ -6,6 +6,7 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
+    'AddonForActivityPub\\Comments' => $baseDir . '/../includes/class-comments.php',
     'AddonForActivityPub\\Limit_Updates' => $baseDir . '/../includes/class-limit-updates.php',
     'AddonForActivityPub\\Masterminds\\HTML5' => $vendorDir . '/masterminds/html5/src/HTML5.php',
     'AddonForActivityPub\\Masterminds\\HTML5\\Elements' => $vendorDir . '/masterminds/html5/src/HTML5/Elements.php',

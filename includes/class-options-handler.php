@@ -9,49 +9,53 @@ namespace AddonForActivityPub;
 
 class Options_Handler {
 	const SCHEMA = array(
-		'local_cat'          => array(
+		'local_cat'           => array(
 			'type'    => 'string',
 			'default' => '',
 		),
-		'unlisted_cat'       => array(
+		'unlisted_cat'        => array(
 			'type'    => 'string',
 			'default' => '',
 		),
-		'unlisted_comments'  => array(
+		'unlisted_comments'   => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'edit_notifications' => array(
+		'edit_notifications'  => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'limit_updates'      => array(
+		'limit_updates'       => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'enable_replies'     => array(
+		'enable_replies'      => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'enable_reposts'     => array(
+		'enable_reposts'      => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'enable_likes'       => array(
+		'enable_likes'        => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'cache_avatars'      => array(
+		'cache_avatars'       => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'proxy_avatars'      => array(
+		'proxy_avatars'       => array(
 			'type'    => 'boolean',
 			'default' => false,
 		),
-		'close_comments'     => array(
+		'close_comments'      => array(
 			'type'    => 'integer',
 			'default' => 0,
+		),
+		'disable_reply_modal' => array(
+			'type'    => 'boolean',
+			'default' => false,
 		),
 	);
 
@@ -138,23 +142,24 @@ class Options_Handler {
 	 */
 	public function sanitize_settings( $settings ) {
 		$options = array(
-			'local_cat'          => isset( $settings['local_cat'] ) && '' !== $settings['local_cat']
+			'local_cat'           => isset( $settings['local_cat'] ) && '' !== $settings['local_cat']
 				? sanitize_title( $settings['local_cat'] )
 				: '',
-			'unlisted_cat'       => isset( $settings['unlisted_cat'] ) && '' !== $settings['unlisted_cat']
+			'unlisted_cat'        => isset( $settings['unlisted_cat'] ) && '' !== $settings['unlisted_cat']
 				? sanitize_title( $settings['unlisted_cat'] )
 				: '',
-			'unlisted_comments'  => isset( $settings['unlisted_comments'] ) ? true : false,
-			'edit_notifications' => isset( $settings['edit_notifications'] ) ? true : false,
-			'limit_updates'      => isset( $settings['limit_updates'] ) ? true : false,
-			'enable_replies'     => isset( $settings['enable_replies'] ) ? true : false,
-			'enable_reposts'     => isset( $settings['enable_reposts'] ) ? true : false,
-			'enable_likes'       => isset( $settings['enable_likes'] ) ? true : false,
-			'cache_avatars'      => isset( $settings['cache_avatars'] ) ? true : false,
-			'proxy_avatars'      => isset( $settings['proxy_avatars'] ) ? true : false,
-			'close_comments'     => isset( $settings['close_comments'] ) && ctype_digit( (string) $settings['close_comments'] )
+			'unlisted_comments'   => isset( $settings['unlisted_comments'] ) ? true : false,
+			'edit_notifications'  => isset( $settings['edit_notifications'] ) ? true : false,
+			'limit_updates'       => isset( $settings['limit_updates'] ) ? true : false,
+			'enable_replies'      => isset( $settings['enable_replies'] ) ? true : false,
+			'enable_reposts'      => isset( $settings['enable_reposts'] ) ? true : false,
+			'enable_likes'        => isset( $settings['enable_likes'] ) ? true : false,
+			'cache_avatars'       => isset( $settings['cache_avatars'] ) ? true : false,
+			'proxy_avatars'       => isset( $settings['proxy_avatars'] ) ? true : false,
+			'close_comments'      => isset( $settings['close_comments'] ) && ctype_digit( (string) $settings['close_comments'] )
 				? (int) $settings['close_comments']
 				: 0,
+			'disable_reply_modal' => isset( $settings['disable_reply_modal'] ) ? true : false,
 		);
 
 		$this->options = array_merge( $this->options, $options );
@@ -293,6 +298,12 @@ class Options_Handler {
 							);
 							?>
 						</td>
+					</tr>
+
+					<tr valign="top">
+						<th scope="row"><?php esc_html_e( 'Disable “Reply With Federation”', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[disable_reply_modal]" value="1" <?php checked( ! empty( $this->options['disable_reply_modal'] ) ); ?>/> <?php esc_html_e( 'Disable “Reply with federation” modal', 'addon-for-activitypub' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Don’t load the “Reply with federation” script and styles.', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 				</table>
 				<p class="submit"><?php submit_button( __( 'Save Changes' ), 'primary', 'submit', false ); ?></p>
