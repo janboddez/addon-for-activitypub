@@ -57,6 +57,10 @@ class Options_Handler {
 			'type'    => 'boolean',
 			'default' => false,
 		),
+		'comment_editing'     => array(
+			'type'    => 'boolean',
+			'default' => true,
+		),
 	);
 
 	/**
@@ -160,6 +164,7 @@ class Options_Handler {
 				? (int) $settings['close_comments']
 				: 0,
 			'disable_reply_modal' => isset( $settings['disable_reply_modal'] ) ? true : false,
+			'comment_editing'     => isset( $settings['comment_editing'] ) ? true : false,
 		);
 
 		$this->options = array_merge( $this->options, $options );
@@ -304,6 +309,12 @@ class Options_Handler {
 						<th scope="row"><?php esc_html_e( 'Disable “Reply With Federation”', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[disable_reply_modal]" value="1" <?php checked( ! empty( $this->options['disable_reply_modal'] ) ); ?>/> <?php esc_html_e( 'Disable “Reply with federation” modal', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Don’t load the “Reply with federation” script and styles.', 'addon-for-activitypub' ); ?></p></td>
+					</tr>
+
+					<tr valign="top">
+						<th scope="row"><?php esc_html_e( 'Comment Editing', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[comment_editing]" value="1" <?php checked( ! empty( $this->options['comment_editing'] ) ); ?>/> <?php esc_html_e( 'Enable editing comments', 'addon-for-activitypub' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Enable editing (e.g., for brevity, or to correct typos) incoming “ActivityPub” comments.', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 				</table>
 				<p class="submit"><?php submit_button( __( 'Save Changes' ), 'primary', 'submit', false ); ?></p>

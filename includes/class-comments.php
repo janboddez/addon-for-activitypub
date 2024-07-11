@@ -14,8 +14,29 @@ class Comments {
 	public static function register() {
 		$options = get_options();
 
+		if ( ! empty( $options['comment_editing'] ) ) {
+			add_action( 'init', array( __CLASS__, 'enable_editing' ), PHP_INT_MAX );
+		}
+
 		if ( ! empty( $options['disable_reply_modal'] ) ) {
 			add_action( 'init', array( __CLASS__, 'disable_reply_modal' ), PHP_INT_MAX );
+		}
+	}
+
+	/**
+	 * Re-enables comment editing.
+	 */
+	public static function enable_editing() {
+		if ( ! class_exists( '\\Activitypub\\Admin' ) ) {
+			return;
+		}
+
+		if ( method_exists( \Activitypub\Admin::class, 'edit_comment' ) ) {
+			remove_action( 'load-comment.php', array( \Activitypub\Admin::class, 'edit_comment' ) );
+		}
+
+		if ( method_exists( \Activitypub\Admin::class, 'comment_row_actions' ) ) {
+			remove_filter( 'comment_row_actions', array( \Activitypub\Admin::class, 'comment_row_actions' ) );
 		}
 	}
 
