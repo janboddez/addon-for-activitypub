@@ -60,6 +60,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 ```
 The idea here is that you _could_ append custom fields and whatnot.
 
+A comment template file would be named `wp-content/themes/your-child-theme/activitypub/content-comment.php`.
+
 ## User Profiles
 These are somewhat like the “post type templates” above.
 
