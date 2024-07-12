@@ -1,5 +1,5 @@
 # ActivityPub Add-on
-Somewhat modifies the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)’s behavior. **Probably not ready for production.** 😆
+Somewhat modifies the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)’s behavior.
 
 All features can be switched on or off separately. All of this is subject to change. No warranties whatsoever.
 
