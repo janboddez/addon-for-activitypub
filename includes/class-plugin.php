@@ -139,29 +139,27 @@ class Plugin {
 			remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
 		}
 
+		if ( function_exists( '\\Activitypub\\is_comment' ) ) {
+			$comment_id = \Activitypub\is_comment();
+			if ( $comment_id ) {
+				$comment = get_comment( $comment_id );
+
+				$options = get_options();
+				if ( in_category( $options['local_cat'], $comment->comment_post_ID ) ) {
+					// Disable content negotiation.
+					remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
+				}
+			}
+		}
+
 		if ( is_singular() ) {
 			$post = get_queried_object();
-			if ( ! $post instanceof \WP_Post ) {
-				return $template;
-			}
-
-			$options = get_options();
-			if ( in_category( $options['local_cat'], $post ) ) {
-				// Disable content negotiation.
-				remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
-			}
-		} elseif ( function_exists( '\\Activitypub\\is_comment' ) ) {
-			$comment_id = \Activitypub\is_comment();
-			if ( ! $comment_id ) {
-				return $template;
-			}
-
-			$comment = get_comment( $comment_id );
-
-			$options = get_options();
-			if ( in_category( $options['local_cat'], $comment->comment_post_ID ) ) {
-				// Disable content negotiation.
-				remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
+			if ( $post instanceof \WP_Post ) {
+				$options = get_options();
+				if ( in_category( $options['local_cat'], $post ) ) {
+					// Disable content negotiation.
+					remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
+				}
 			}
 		}
 
