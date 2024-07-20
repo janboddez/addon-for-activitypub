@@ -1,7 +1,10 @@
 # ActivityPub Add-on
-Somewhat modifies the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)’s behavior. **Probably not ready for production.** 😆
+Somewhat modifies the [ActivityPub plugin](https://wordpress.org/plugins/activitypub/)’s behavior.
 
-All features can be switched on or off separately. All of this is subject to change. No warranties whatsoever.
+Most features can be switched on or off separately. All of this is subject to change. No warranties whatsoever.
+
+## Incoming Likes and Reposts
+This plugin adds support for incoming likes and reposts. (For [outgoing replies and reposts](https://github.com/janboddez/addon-for-activitypub?tab=readme-ov-file#enable-replies), see below.)
 
 ## Options
 ### Local-only Category
@@ -40,6 +43,9 @@ This setting addresses that, but only for posts [marked up as replies](https://i
 ### Enable “Reposts”
 Similar to replies; This should translate “[reposts](https://indieweb.org/repost#How_to_Publish)” into “boosts” (or “reblogs”) on Mastodon and other Fediverse platforms.
 
+### Close Comments
+Allow closing ActivityPub reactions after a certain number of days. Much like core WordPress’ setting for regular comments.
+
 ## Content Templates
 This plugin also adds “post type templates.” There’s no separate setting for them.
 
@@ -59,6 +65,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 <p><a href="<?php echo esc_url( get_permalink( $post ) ); ?>"><?php echo esc_html( get_permalink( $post ) ); ?></a></p>
 ```
 The idea here is that you _could_ append custom fields and whatnot.
+
+A comment template file would be named `wp-content/themes/your-child-theme/activitypub/content-comment.php`.
 
 ## User Profiles
 These are somewhat like the “post type templates” above.
