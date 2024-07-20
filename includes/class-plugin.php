@@ -134,6 +134,11 @@ class Plugin {
 			return $template;
 		}
 
+		if ( ! empty( $_SERVER['HTTP_USER_AGENT'] ) && false !== stripos( $_SERVER['HTTP_USER_AGENT'], 'XRay' ) ) { // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			// Always disable conneg for X-Ray.
+			remove_filter( 'template_include', array( \Activitypub\Activitypub::class, 'render_json_template' ), 99 );
+		}
+
 		if ( ! is_singular() ) {
 			return $template;
 		}
