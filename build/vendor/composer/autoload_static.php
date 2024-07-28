@@ -7,12 +7,12 @@ namespace Composer\Autoload;
 class ComposerStaticInit627b648743a30f75cffded860aa949cb
 {
     public static $files = array (
-        '757772e28a0943a9afe83def8db95bdf' => __DIR__ . '/..' . '/mf2/mf2/Mf2/Parser.php',
-        'a01125dfebcda7ec3333dcd2d57ad8f2' => __DIR__ . '/../..' . '/../includes/functions.php',
+        'AddonForActivityPub_757772e28a0943a9afe83def8db95bdf' => __DIR__ . '/..' . '/mf2/mf2/Mf2/Parser.php',
+        'AddonForActivityPub_a01125dfebcda7ec3333dcd2d57ad8f2' => __DIR__ . '/../..' . '/../includes/functions.php',
     );
 
     public static $prefixLengthsPsr4 = array (
-        'A' => 
+        'A' =>
         array (
             'AddonForActivityPub\\zz\\' => 23,
             'AddonForActivityPub\\Masterminds\\' => 32,
@@ -20,11 +20,11 @@ class ComposerStaticInit627b648743a30f75cffded860aa949cb
     );
 
     public static $prefixDirsPsr4 = array (
-        'AddonForActivityPub\\zz\\' => 
+        'AddonForActivityPub\\zz\\' =>
         array (
             0 => __DIR__ . '/..' . '/deruli/html-minifier/src/zz',
         ),
-        'AddonForActivityPub\\Masterminds\\' => 
+        'AddonForActivityPub\\Masterminds\\' =>
         array (
             0 => __DIR__ . '/..' . '/masterminds/html5/src',
         ),
