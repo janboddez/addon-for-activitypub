@@ -722,16 +722,17 @@ class Plugin {
 			return;
 		}
 
-		$comment_post_id   = url_to_postid( $url );
-		$parent_comment_id = \Activitypub\url_to_commentid( $url );
+		$comment_post_id = url_to_postid( $url );
 
-		if ( ! $comment_post_id && $parent_comment_id ) {
-			$parent_comment  = get_comment( $parent_comment_id );
-			$comment_post_id = $parent_comment->comment_post_ID;
-		}
+		// $parent_comment_id = \Activitypub\url_to_commentid( $url );
+
+		// if ( ! $comment_post_id && $parent_comment_id ) {
+		// 	$parent_comment  = get_comment( $parent_comment_id );
+		// 	$comment_post_id = $parent_comment->comment_post_ID;
+		// }
 
 		if ( ! $comment_post_id ) {
-			// Not a reply to a post or comment.
+			// Not a reply to a post ~~or comment~~.
 			return false;
 		}
 
