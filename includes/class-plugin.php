@@ -176,16 +176,20 @@ class Plugin {
 	 * @return bool                                     Whether we should post to followers' inboxes.
 	 */
 	public function disable_federation( $send, $activity, $user_id, $wp_object ) {
-		if ( ! $wp_object instanceof \WP_Post ) {
+		if ( ! $wp_object instanceof \WP_Post && ! $wp_object instanceof \WP_Comment ) {
 			return $send;
 		}
 
 		$options = get_options();
-		if ( ! in_category( $options['local_cat'], $wp_object ) ) {
-			return $send;
+		if ( $wp_object instanceof \WP_Post && in_category( $options['local_cat'], $wp_object ) ) {
+			return false;
 		}
 
-		return false;
+		if ( $wp_object instanceof \WP_Comment && in_category( $options['local_cat'], $wp_object->comment_post_ID ) ) {
+			return false;
+		}
+
+		return $send;
 	}
 
 	/**
