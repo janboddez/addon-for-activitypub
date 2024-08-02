@@ -7,6 +7,8 @@ Most features can be switched on or off separately. All of this is subject to ch
 This plugin adds support for incoming likes and reposts. (For [outgoing replies and reposts](https://github.com/janboddez/addon-for-activitypub?tab=readme-ov-file#enable-replies), see below.)
 
 ## Options
+![settings](https://github.com/user-attachments/assets/776cb0b9-e9bb-4d60-949a-eae308afc85f)
+
 ### Local-only Category
 Posts (of any post type, as long as it supports WordPress’ built-in categories) in this category will not get “federated” and remain “local-only.”
 
