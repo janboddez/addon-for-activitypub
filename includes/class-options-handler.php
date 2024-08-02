@@ -272,7 +272,7 @@ class Options_Handler {
 						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “reposts” in “proper Fediverse ‘reblogs.’”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 					<tr valign="top">
-						<th scope="row"><?php esc_html_e( 'Enable Likes', 'addon-for-activitypub' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Enable “Likes”', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_likes]" value="1" <?php checked( ! empty( $this->options['enable_likes'] ) ); ?>/> <?php esc_html_e( 'Enable “likes”', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “likes” in “proper Fediverse ‘likes.’”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
