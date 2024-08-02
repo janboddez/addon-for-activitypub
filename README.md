@@ -43,6 +43,9 @@ This setting addresses that, but only for posts [marked up as replies](https://i
 ### Enable “Reposts”
 Similar to replies; This should translate “[reposts](https://indieweb.org/repost#How_to_Publish)” into “boosts” (or “reblogs”) on Mastodon and other Fediverse platforms.
 
+### Enable “Likes”
+Enables outgoing likes. That is, this setting turns posts [marked up as likes](https://indieweb.org/like#How) into “actual Fediverse likes,” but only if the remote URL actually supports ActivityPub.
+
 ### Close Comments
 Allow closing ActivityPub reactions after a certain number of days. Much like core WordPress’ setting for regular comments.
 
