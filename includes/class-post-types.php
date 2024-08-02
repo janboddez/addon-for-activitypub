@@ -749,30 +749,30 @@ class Post_Types {
 			return $actor;
 		}
 
-		$response     = remote_get( $url, 'application/activity+json' ); // WordPress would return HTML in response to a HEAD request.
-		$content_type = wp_remote_retrieve_header( $response, 'content-type' );
-		if ( ! empty( $content_type ) && is_string( $content_type ) ) {
-			$content_type = strtok( $content_type, ';' );
-			strtok( '', '' );
-		}
-
-		if ( empty( $content_type ) || ! in_array( $content_type, array( 'application/json', 'application/activity+json', 'application/ld+json' ), true ) ) {
-			// Note: Mastodon will return `application/json` (and an error) when
-			// "Authorized Fetch" is enabled.
-			/** @link: https://docs.joinmastodon.org/admin/config/#authorized_fetch */
+		if ( ! class_exists( '\\Activitypub\\Http' ) ) {
 			return $actor;
 		}
 
-		$json = json_decode( wp_remote_retrieve_body( $response ) );
+		if ( ! method_exists( \Activitypub\Http::class, 'get_remote_object' ) ) {
+			return $actor;
+		}
 
-		if ( ! empty( $json->attributedTo ) && is_string( $json->attributedTo ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+		if ( ! function_exists( '\\Activitypub\\get_remote_metadata_by_actor' ) ) {
+			return $actor;
+		}
+
+		// By using ActivityPub's method, which uses signed requests, instead of `wp_safe_remote_get()`, we increase our
+		// chances of getting proper actor details.
+		$array = \Activitypub\Http::get_remote_object( $url );
+
+		if ( ! empty( $array['attributedTo'] ) && is_string( $array['attributedTo'] ) ) {
 			// This is the type of JSON we want to see. This would be a Fediverse profile.
 			error_log( '[Add-on for ActivityPub] Found an author URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			$actor_url = $json->attributedTo; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$actor_url_or_handle = $array['attributedTo']; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		} elseif ( ! empty( $author ) && preg_match( '~^@([^@]+?@[^@]+?)$~', $author, $match ) && filter_var( $match[1], FILTER_VALIDATE_EMAIL ) ) {
 			// Purely based off the author "handle," we could be replying to a Fediverse account here.
 			error_log( '[Add-on for ActivityPub] Found something that sure looks like a "Fediverse handle."' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			$handle = $match[1];
+			$actor_url_or_handle = $match[1];
 		} else {
 			// Could *still* be a Fediverse instance that has "Authorized Fetch" enabled.
 			$path = wp_parse_url( $url, PHP_URL_PATH );
@@ -785,37 +785,34 @@ class Post_Types {
 				$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
 				$host   = wp_parse_url( $url, PHP_URL_HOST );
 
-				$actor_url = "$scheme://$host/$path";
+				$actor_url_or_handle = "$scheme://$host/$path";
 			}
 		}
 
-		if ( empty( $handle ) && empty( $actor_url ) ) {
-			// We need either a "handle" or URL.
+		if ( empty( $actor_url_or_handle ) ) {
+			// We need either a "handle" (or username), or a URL.
 			return $actor;
 		}
 
-		if ( ! class_exists( '\\Activitypub\\Webfinger' ) ) {
+		$metadata = \Activitypub\get_remote_metadata_by_actor( $actor_url_or_handle );
+		if ( ! is_array( $metadata ) || ( empty( $metadata['id'] ) && empty( $metadata['url'] ) ) ) {
 			return $actor;
 		}
 
-		if ( empty( $handle ) && ! empty( $actor_url ) && method_exists( \Activitypub\Webfinger::class, 'uri_to_acct' ) ) {
-			// We got a URL, either from an ActivityPub object or because it
-			// looked like a Mastodon one, but no `acct`.
-			$handle = \Activitypub\Webfinger::uri_to_acct( $actor_url );
-			if ( is_string( $handle ) && 0 === strpos( $handle, 'acct:' ) ) {
-				// Whatever "actor URL" we had, it seems to support Webfinger.
-				$handle = filter_var( substr( $handle, 5 ), FILTER_SANITIZE_EMAIL );
-			} elseif ( ! empty( $json->attributedTo ) ) { // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-				// Might not support "reverse Webfinger," but should really be a
-				// Fediverse account. Fallback to URL.
-				$handle = esc_url_raw( $actor_url );
-			}
-		} elseif ( ! empty( $handle ) && empty( $actor_url ) && method_exists( \Activitypub\Webfinger::class, 'resolve' ) ) {
-			// We got a `@user@example.org` handle but no URL.
-			$actor_url = \Activitypub\Webfinger::resolve( $handle );
+		$handle = esc_url_raw( ltrim( $actor_url_or_handle, '@' ) ); // Fallback value.
+		if ( ! empty( $metadata['preferredUsername'] ) ) {
+			$handle = $metadata['preferredUsername'];
+		} elseif ( ! empty( $metadata['name'] ) ) {
+			$handle = $metadata['name'];
 		}
 
-		if ( empty( $handle ) || is_wp_error( $handle ) || empty( $actor_url ) || is_wp_error( $actor_url ) ) {
+		if ( ! empty( $metadata['url'] ) ) {
+			$actor_url = $metadata['url'];
+		} elseif ( ! empty( $metadata['id'] ) ) {
+			$actor_url = $metadata['id'];
+		}
+
+		if ( empty( $handle ) || empty( $actor_url ) ) {
 			return $actor;
 		}
 
