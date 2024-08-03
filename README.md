@@ -6,6 +6,9 @@ Most features can be switched on or off separately. All of this is subject to ch
 ## Incoming Likes and Reposts
 This plugin adds support for incoming likes and reposts. (For [outgoing replies and reposts](https://github.com/janboddez/addon-for-activitypub?tab=readme-ov-file#enable-replies), see below.)
 
+## Retries
+If posting to one of your followers’ remote server fails, e.g., because it is temporarily down, then up to three retries will be scheduled.
+
 ## Options
 ![settings](https://github.com/user-attachments/assets/776cb0b9-e9bb-4d60-949a-eae308afc85f)
 
