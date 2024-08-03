@@ -26,6 +26,10 @@ class Post_Types {
 		/** @todo: These, too, could probably be grouped into a single function. */
 		// Add `inReplyTo` URL.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'add_in_reply_to_url' ), 999, 4 );
+
+		// Remove IndieBlocks' callback(s).
+		add_action( 'init', array( __CLASS__, 'indieblocks_compat' ), 99 );
+
 		// Transform "reposts" to Announce activities.
 		add_filter( 'activitypub_activity_object_array', array( __CLASS__, 'transform_to_announce' ), 999, 4 );
 		// And the deletion of "reposts" to "Undo (Announce)" activities.
@@ -43,6 +47,21 @@ class Post_Types {
 
 		// Correct the total post count, for "featured" collections.
 		add_filter( 'get_usernumposts', array( __CLASS__, 'repair_count' ), 99, 2 );
+	}
+
+	/**
+	 * IndieBlocks comes with reply support, too, so disable that.
+	 */
+	public static function indieblocks_compat() {
+		if ( ! class_exists( '\\IndieBlocks\\ActivityPub_Compat' ) ) {
+			return;
+		}
+
+		if ( ! method_exists( \IndieBlocks\ActivityPub_Compat::class, 'add_in_reply_to_url' ) ) {
+			return;
+		}
+
+		remove_filter( 'activitypub_activity_object_array', array( \IndieBlocks\ActivityPub_Compat::class, 'add_in_reply_to_url' ), 99, 4 );
 	}
 
 	/**
