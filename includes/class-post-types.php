@@ -763,12 +763,12 @@ class Post_Types {
 
 		// By using ActivityPub's method, which uses signed requests, instead of `wp_safe_remote_get()`, we increase our
 		// chances of getting proper actor details.
-		$array = \Activitypub\Http::get_remote_object( $url );
+		$remote_obj = \Activitypub\Http::get_remote_object( $url );
 
-		if ( ! empty( $array['attributedTo'] ) && is_string( $array['attributedTo'] ) ) {
+		if ( is_array( $remote_obj ) && ! empty( $remote_obj['attributedTo'] ) ) {
 			// This is the type of JSON we want to see. This would be a Fediverse profile.
 			error_log( '[Add-on for ActivityPub] Found an author URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			$actor_url_or_handle = $array['attributedTo']; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
+			$actor_url_or_handle = $remote_obj['attributedTo']; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
 		} elseif ( ! empty( $author ) && preg_match( '~^@([^@]+?@[^@]+?)$~', $author, $match ) && filter_var( $match[1], FILTER_VALIDATE_EMAIL ) ) {
 			// Purely based off the author "handle," we could be replying to a Fediverse account here.
 			error_log( '[Add-on for ActivityPub] Found something that sure looks like a "Fediverse handle."' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
