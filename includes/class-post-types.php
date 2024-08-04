@@ -761,7 +761,7 @@ class Post_Types {
 	 * @param  string $author Author name or handle.
 	 * @return array          Actor details, or an empty array.
 	 */
-	protected static function get_activitypub_actor( $url, $author ) {
+	protected static function get_activitypub_actor( $url, $author = '' ) {
 		$actor = array();
 
 		if ( empty( $url ) ) {
@@ -776,63 +776,47 @@ class Post_Types {
 			return $actor;
 		}
 
+		if ( ! function_exists( '\\Activitypub\\object_to_uri' ) ) {
+			return $actor;
+		}
+
 		if ( ! function_exists( '\\Activitypub\\get_remote_metadata_by_actor' ) ) {
 			return $actor;
 		}
 
 		// By using ActivityPub's method, which uses signed requests, instead of `wp_safe_remote_get()`, we increase our
 		// chances of getting proper actor details.
-		$remote_obj = \Activitypub\Http::get_remote_object( $url );
+		$object = \Activitypub\Http::get_remote_object( $url );
 
-		if ( is_array( $remote_obj ) && ! empty( $remote_obj['attributedTo'] ) ) {
-			// This is the type of JSON we want to see. This would be a Fediverse profile.
-			error_log( '[Add-on for ActivityPub] Found an author URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			$actor_url_or_handle = $remote_obj['attributedTo']; // phpcs:ignore WordPress.NamingConventions.ValidVariableName.UsedPropertyNotSnakeCase
-		} elseif ( ! empty( $author ) && preg_match( '~^@([^@]+?@[^@]+?)$~', $author, $match ) && filter_var( $match[1], FILTER_VALIDATE_EMAIL ) ) {
-			// Purely based off the author "handle," we could be replying to a Fediverse account here.
-			error_log( '[Add-on for ActivityPub] Found something that sure looks like a "Fediverse handle."' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-			$actor_url_or_handle = $match[1];
+		if ( ! is_array( $object ) || empty( $object['attributedTo'] ) ) {
+			return $actor;
+		}
+
+		$actor_url = \Activitypub\object_to_uri( $object['attributedTo'] );
+		$meta      = \Activitypub\get_remote_metadata_by_actor( $actor_url );
+
+		if ( ! is_array( $meta ) || ( empty( $meta['id'] ) && empty( $meta['url'] ) ) ) {
+			return $actor;
+		}
+
+		if ( ! empty( $meta['preferredUsername'] ) ) {
+			$handle = $meta['preferredUsername'];
+		} elseif ( ! empty( $meta['name'] ) ) {
+			$handle = $meta['name'];
 		} else {
-			// Could *still* be a Fediverse instance that has "Authorized Fetch" enabled.
-			$path = wp_parse_url( $url, PHP_URL_PATH );
-			if ( 0 === strpos( ltrim( $path, '/' ), '@' ) ) {
-				error_log( '[Add-on for ActivityPub] Found a possible Mastodon URL.' ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log
-				// Sure looks like a Mastodon URL. It's impossible to do this for all URLs, though.
-				$path = strtok( $path, '/' );
-				strtok( '', '' );
+			$handle = esc_url_raw( $actor_url );
+		}
 
-				$scheme = wp_parse_url( $url, PHP_URL_SCHEME );
-				$host   = wp_parse_url( $url, PHP_URL_HOST );
-
-				$actor_url_or_handle = "$scheme://$host/$path";
+		if ( ! preg_match( '~^https?://~', $handle ) ) {
+			if ( false === strpos( $handle, '@' ) && ! preg_match( '~\s~', $handle ) ) {
+				$host = wp_parse_url( $actor_url, PHP_URL_HOST );
+				if ( ! empty( $host ) ) {
+					// Add domain name.
+					$handle .= '@' . $host;
+				}
 			}
-		}
 
-		if ( empty( $actor_url_or_handle ) ) {
-			// We need either a "handle" (or username), or a URL.
-			return $actor;
-		}
-
-		$metadata = \Activitypub\get_remote_metadata_by_actor( $actor_url_or_handle );
-		if ( ! is_array( $metadata ) || ( empty( $metadata['id'] ) && empty( $metadata['url'] ) ) ) {
-			return $actor;
-		}
-
-		$handle = esc_url_raw( ltrim( $actor_url_or_handle, '@' ) ); // Fallback value.
-		if ( ! empty( $metadata['preferredUsername'] ) ) {
-			$handle = $metadata['preferredUsername'];
-		} elseif ( ! empty( $metadata['name'] ) ) {
-			$handle = $metadata['name'];
-		}
-
-		if ( ! empty( $metadata['url'] ) ) {
-			$actor_url = $metadata['url'];
-		} elseif ( ! empty( $metadata['id'] ) ) {
-			$actor_url = $metadata['id'];
-		}
-
-		if ( empty( $handle ) || empty( $actor_url ) ) {
-			return $actor;
+			$handle = '@' . $handle;
 		}
 
 		$actor[ $handle ] = esc_url_raw( $actor_url );
