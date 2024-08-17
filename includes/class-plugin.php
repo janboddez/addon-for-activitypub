@@ -727,16 +727,8 @@ class Plugin {
 		}
 
 		$comment_post_id = url_to_postid( $url );
-
-		// $parent_comment_id = \Activitypub\url_to_commentid( $url );
-
-		// if ( ! $comment_post_id && $parent_comment_id ) {
-		// 	$parent_comment  = get_comment( $parent_comment_id );
-		// 	$comment_post_id = $parent_comment->comment_post_ID;
-		// }
-
 		if ( ! $comment_post_id ) {
-			// Not a reply to a post ~~or comment~~.
+			// Not a like or repost of a *post*. We ignore likes and reposts of comments.
 			return false;
 		}
 
@@ -764,7 +756,7 @@ class Plugin {
 			'comment_content'      => $comment_content,
 			'comment_type'         => '',
 			'comment_author_email' => '',
-			'comment_parent'       => $parent_comment_id ? $parent_comment_id : 0,
+			'comment_parent'       => 0, // We ignore likes or reposts of comments.
 			'comment_meta'         => array(
 				'source_id'                     => esc_url_raw( $activity['id'] ), // To be able to detect existing comments.
 				'protocol'                      => 'activitypub', // So we can cache avatars (hoping it doesn't break anything else).
