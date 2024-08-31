@@ -161,3 +161,141 @@ function is_activitypub() {
 	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotValidated,WordPress.Security.ValidatedSanitizedInput.MissingUnslash,WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 	return ( false !== strpos( $_SERVER['REQUEST_URI'], trailingslashit( rest_get_url_prefix() ) . ACTIVITYPUB_REST_NAMESPACE ) );
 }
+
+/**
+ * Stores a remote image locally.
+ *
+ * @param  string $url      Image URL.
+ * @param  string $filename Target file name.
+ * @param  string $dir      Target directory, relative to WordPress' uploads directory.
+ * @param  string $width    Target width.
+ * @param  string $height   Target height.
+ * @return string|null      Local image URL, or nothing on failure.
+ */
+function store_image( $url, $filename, $dir, $width = 150, $height = 150 ) {
+	if ( 0 === strpos( $url, home_url() ) ) {
+		// Not a remote URL.
+		return $url;
+	}
+
+	$upload_dir = wp_upload_dir();
+	$dir        = trailingslashit( $upload_dir['basedir'] ) . trim( $dir, '/' );
+
+	if ( ! is_dir( $dir ) ) {
+		wp_mkdir_p( $dir ); // Recursive directory creation. Permissions are taken from the nearest parent folder.
+	}
+
+	// Where we'll eventually store the image.
+	$file_path = trailingslashit( $dir ) . sanitize_file_name( $filename );
+
+	if ( file_exists( $file_path ) && ( time() - filectime( $file_path ) ) < MONTH_IN_SECONDS ) {
+		// File exists and is under a month old. We're done here.
+		return str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $file_path );
+	}
+
+	// In case we previously added a file extension.
+	foreach ( glob( "$file_path.*" ) as $match ) {
+		$file_path = $match;
+
+		if ( ( time() - filectime( $file_path ) ) < MONTH_IN_SECONDS ) {
+			// So, _this_ file exists and is under a month old. Let's return it.
+			return str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $file_path );
+		}
+
+		break; // Stop after the first match.
+	}
+
+	// To be able to move files around.
+	global $wp_filesystem;
+
+	if ( ! function_exists( 'download_url' ) || empty( $wp_filesystem ) ) {
+		require_once ABSPATH . 'wp-admin/includes/file.php';
+		WP_Filesystem();
+	}
+
+	// OK, so either the file doesn't exist or is over a month old. Attempt to
+	// download the image.
+	$temp_file = download_url( esc_url_raw( $url ) );
+
+	if ( is_wp_error( $temp_file ) ) {
+		debug_log( '[Add-on for ActivityPub] Could not download the image at ' . esc_url_raw( $url ) . '.' );
+		return null;
+	}
+
+	if ( '' === pathinfo( $file_path, PATHINFO_EXTENSION ) && function_exists( 'mime_content_type' ) ) {
+		// Some filesystem drivers--looking at you, S3 Uploads--take issue with
+		// extensionless files.
+		$mime = mime_content_type( $temp_file );
+
+		if ( is_string( $mime ) ) {
+			$mimes = new Mimey\MimeTypes(); // A MIME type to file extension map, essentially.
+			$ext   = $mimes->getExtension( $mime );
+		}
+	}
+
+	if ( ! empty( $ext ) ) {
+		if ( '' === pathinfo( $temp_file, PATHINFO_EXTENSION ) ) {
+			// If our temp file is missing an extension, too, rename it before
+			// attempting to run any image resizing functions on it.
+			if ( $wp_filesystem->move( $temp_file, "$temp_file.$ext" ) ) {
+				// Successfully renamed the file.
+				$temp_file .= ".$ext";
+			} elseif ( $wp_filesystem->put_contents( "$temp_file.$ext", $wp_filesystem->get_contents( $temp_file ), 0644 ) ) {
+				// This here mainly because, once again,  plugins like S3
+				// Uploads, or rather, the AWS SDK for PHP, doesn't always play
+				// nice with `WP_Filesystem::move()`.
+				wp_delete_file( $temp_file ); // Delete the original.
+				$temp_file .= ".$ext"; // Our new file path from here on out.
+			}
+		}
+
+		// Tack our newly discovered extension onto our target file name, too.
+		$file_path .= ".$ext";
+	}
+
+	if ( ! function_exists( 'wp_crop_image' ) ) {
+		// Load WordPress' image functions.
+		require_once ABSPATH . 'wp-admin/includes/image.php';
+	}
+
+	if ( ! file_is_valid_image( $temp_file ) || ! file_is_displayable_image( $temp_file ) ) {
+		debug_log( '[Add-on for ActivityPub] Invalid image file: ' . esc_url_raw( $url ) . '.' );
+
+		// Delete temp file and return.
+		wp_delete_file( $temp_file );
+
+		return null;
+	}
+
+	// Move the altered file to its final destination.
+	if ( ! $wp_filesystem->move( $temp_file, $file_path ) ) {
+		// If `WP_Filesystem::move()` failed, do it this way.
+		$wp_filesystem->put_contents( $file_path, $wp_filesystem->get_contents( $temp_file ), 0644 );
+		wp_delete_file( $temp_file ); // Always delete the original.
+	}
+
+	// Try to scale down and crop it. Somehow, at least in combination with S3
+	// Uploads, `WP_Image_Editor::save()` attempts to write the image to S3
+	// storage, which I guess fails because, well, for one, the path doesn't
+	// match. Which is why we moved it before doing this.
+	$image = wp_get_image_editor( $file_path );
+
+	if ( ! is_wp_error( $image ) ) {
+		$image->resize( $width, $height, true );
+		$result = $image->save( $file_path );
+
+		if ( isset( $result['path'] ) && $file_path !== $result['path'] ) {
+			// The image editor's `save()` method has altered our temp file's
+			// path (e.g., added an extension that wasn't there).
+			wp_delete_file( $file_path ); // Delete "old" image.
+			$file_path = $result['path']; // And update the file path (and name).
+		} elseif ( is_wp_error( $result ) ) {
+			debug_log( "[Add-on for ActivityPub] Could not resize $file_path: " . $result->get_error_message() . '.' );
+		}
+	} else {
+		debug_log( "[Add-on for ActivityPub] Could not load $file_path into WordPress' image editor: " . $image->get_error_message() . '.' );
+	}
+
+	// And return the local URL.
+	return str_replace( $upload_dir['basedir'], $upload_dir['baseurl'], $file_path );
+}

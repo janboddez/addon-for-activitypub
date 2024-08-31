@@ -15,6 +15,7 @@ class ComposerStaticInit627b648743a30f75cffded860aa949cb
         'A' =>
         array (
             'AddonForActivityPub\\zz\\' => 23,
+            'AddonForActivityPub\\Mimey\\' => 26,
             'AddonForActivityPub\\Masterminds\\' => 32,
         ),
     );
@@ -23,6 +24,10 @@ class ComposerStaticInit627b648743a30f75cffded860aa949cb
         'AddonForActivityPub\\zz\\' =>
         array (
             0 => __DIR__ . '/..' . '/deruli/html-minifier/src/zz',
+        ),
+        'AddonForActivityPub\\Mimey\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/ralouphie/mimey/src',
         ),
         'AddonForActivityPub\\Masterminds\\' =>
         array (
@@ -53,6 +58,9 @@ class ComposerStaticInit627b648743a30f75cffded860aa949cb
         'AddonForActivityPub\\Masterminds\\HTML5\\Serializer\\OutputRules' => __DIR__ . '/..' . '/masterminds/html5/src/HTML5/Serializer/OutputRules.php',
         'AddonForActivityPub\\Masterminds\\HTML5\\Serializer\\RulesInterface' => __DIR__ . '/..' . '/masterminds/html5/src/HTML5/Serializer/RulesInterface.php',
         'AddonForActivityPub\\Masterminds\\HTML5\\Serializer\\Traverser' => __DIR__ . '/..' . '/masterminds/html5/src/HTML5/Serializer/Traverser.php',
+        'AddonForActivityPub\\Mimey\\MimeMappingGenerator' => __DIR__ . '/..' . '/ralouphie/mimey/src/MimeMappingGenerator.php',
+        'AddonForActivityPub\\Mimey\\MimeTypes' => __DIR__ . '/..' . '/ralouphie/mimey/src/MimeTypes.php',
+        'AddonForActivityPub\\Mimey\\MimeTypesInterface' => __DIR__ . '/..' . '/ralouphie/mimey/src/MimeTypesInterface.php',
         'AddonForActivityPub\\Options_Handler' => __DIR__ . '/../..' . '/../includes/class-options-handler.php',
         'AddonForActivityPub\\Plugin' => __DIR__ . '/../..' . '/../includes/class-plugin.php',
         'AddonForActivityPub\\Post_Types' => __DIR__ . '/../..' . '/../includes/class-post-types.php',

@@ -276,13 +276,11 @@ class Options_Handler {
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_likes]" value="1" <?php checked( ! empty( $this->options['enable_likes'] ) ); ?>/> <?php esc_html_e( 'Enable “likes”', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “likes” into “proper Fediverse ‘likes.’”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
-					<?php if ( function_exists( '\\IndieBlocks\\store_image' ) ) : ?>
-						<tr valign="top">
-							<th scope="row"><?php esc_html_e( '“Cache” Avatars', 'addon-for-activitypub' ); ?></th>
-							<td><label><input type="checkbox" name="addon_for_activitypub_settings[cache_avatars]" value="1" <?php checked( ! empty( $this->options['cache_avatars'] ) ); ?>/> <?php esc_html_e( '“Cache” avatars', 'addon-for-activitypub' ); ?></label>
-							<p class="description"><?php esc_html_e( '(Experimental) Store avatars locally for at least a month.', 'addon-for-activitypub' ); ?></p></td>
-						</tr>
-					<?php endif; ?>
+					<tr valign="top">
+						<th scope="row"><?php esc_html_e( '“Cache” Avatars', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[cache_avatars]" value="1" <?php checked( ! empty( $this->options['cache_avatars'] ) ); ?>/> <?php esc_html_e( '“Cache” avatars', 'addon-for-activitypub' ); ?></label>
+						<p class="description"><?php esc_html_e( '(Experimental) Store avatars locally for at least a month.', 'addon-for-activitypub' ); ?></p></td>
+					</tr>
 
 					<?php if ( function_exists( '\\IndieBlocks\\proxy_image' ) ) : ?>
 						<tr valign="top">

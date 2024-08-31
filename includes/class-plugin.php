@@ -373,10 +373,6 @@ class Plugin {
 	 * @return array              Comment data.
 	 */
 	public function store_avatar( $commentdata ) {
-		if ( ! function_exists( '\\IndieBlocks\\store_image' ) ) {
-			return $commentdata;
-		}
-
 		if ( empty( $commentdata['comment_meta']['protocol'] ) || 'activitypub' !== $commentdata['comment_meta']['protocol'] ) {
 			return $commentdata;
 		}
@@ -407,7 +403,7 @@ class Plugin {
 		// do so.
 		$dir = apply_filters( 'addon_for_activitypub_avatar_dir', $dir, $url );
 
-		$local_url = \IndieBlocks\store_image( $url, $filename, $dir ); // Attempt to store and resize the avatar.
+		$local_url = store_image( $url, $filename, $dir ); // Attempt to store and resize the avatar.
 		if ( null !== $local_url ) {
 			$commentdata['comment_meta']['avatar_url'] = $local_url; // Replace the original URL by the local one.
 		}

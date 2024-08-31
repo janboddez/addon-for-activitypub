@@ -7,5 +7,6 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'AddonForActivityPub\\zz\\' => array($vendorDir . '/deruli/html-minifier/src/zz'),
+    'AddonForActivityPub\\Mimey\\' => array($vendorDir . '/ralouphie/mimey/src'),
     'AddonForActivityPub\\Masterminds\\' => array($vendorDir . '/masterminds/html5/src'),
 );
