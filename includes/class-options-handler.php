@@ -269,12 +269,12 @@ class Options_Handler {
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( 'Enable “Reposts”', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_reposts]" value="1" <?php checked( ! empty( $this->options['enable_reposts'] ) ); ?>/> <?php esc_html_e( 'Enable “reposts”', 'addon-for-activitypub' ); ?></label>
-						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “reposts” in “proper Fediverse ‘reblogs.’”', 'addon-for-activitypub' ); ?></p></td>
+						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “reposts” into “proper Fediverse ‘reblogs.’”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( 'Enable “Likes”', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[enable_likes]" value="1" <?php checked( ! empty( $this->options['enable_likes'] ) ); ?>/> <?php esc_html_e( 'Enable “likes”', 'addon-for-activitypub' ); ?></label>
-						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “likes” in “proper Fediverse ‘likes.’”', 'addon-for-activitypub' ); ?></p></td>
+						<p class="description"><?php esc_html_e( '(Experimental) Turn so-called “likes” into “proper Fediverse ‘likes.’”', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 					<?php if ( function_exists( '\\IndieBlocks\\store_image' ) ) : ?>
 						<tr valign="top">
