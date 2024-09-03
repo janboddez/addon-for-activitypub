@@ -396,8 +396,8 @@ class Plugin {
 		$ext      = pathinfo( $url, PATHINFO_EXTENSION );
 		$filename = $hash . ( ! empty( $ext ) ? '.' . $ext : '' ); // Add a file extension if there was one.
 
-		$dir  = 'activitypub-avatars'; // The folder we're saving our avatars to.
-		$dir .= '/' . substr( $hash, 0, 2 ); // To somewhat "spread out" the images over various subfolders.
+		$dir  = 'activitypub-avatars/'; // The folder we're saving our avatars to.
+		$dir .= substr( $hash, 0, 2 ) . '/' . substr( $hash, 2, 2 );
 
 		// Make cache directory filterable. Like, if a site owner did not want the month and year in there, they could
 		// do so.
