@@ -61,6 +61,10 @@ class Options_Handler {
 			'type'    => 'boolean',
 			'default' => true,
 		),
+		'incoming_reactions'  => array(
+			'type'    => 'boolean',
+			'default' => false,
+		),
 	);
 
 	/**
@@ -165,6 +169,7 @@ class Options_Handler {
 				: 0,
 			'disable_reply_modal' => isset( $settings['disable_reply_modal'] ) ? true : false,
 			'comment_editing'     => isset( $settings['comment_editing'] ) ? true : false,
+			'incoming_reactions'  => isset( $settings['incoming_reactions'] ) ? true : false,
 		);
 
 		$this->options = array_merge( $this->options, $options );
@@ -255,6 +260,11 @@ class Options_Handler {
 						<th scope="row"><?php esc_html_e( '“Edit” Notifications', 'addon-for-activitypub' ); ?></th>
 						<td><label><input type="checkbox" name="addon_for_activitypub_settings[edit_notifications]" value="1" <?php checked( ! empty( $this->options['edit_notifications'] ) ); ?>/> <?php esc_html_e( 'Enable “edit” notifications', 'addon-for-activitypub' ); ?></label>
 						<p class="description"><?php esc_html_e( 'Receive an email notification when a (remote) comment gets edited.', 'addon-for-activitypub' ); ?></p></td>
+					</tr>
+					<tr valign="top">
+						<th scope="row"><?php esc_html_e( 'Incoming Reactions', 'addon-for-activitypub' ); ?></th>
+						<td><label><input type="checkbox" name="addon_for_activitypub_settings[incoming_reactions]" value="1" <?php checked( ! empty( $this->options['incoming_reactions'] ) ); ?>/> <?php esc_html_e( 'Enable incoming likes and reposts', 'addon-for-activitypub' ); ?></label>
+						<p class="description"><?php esc_html_e( 'Enable support for incoming likes and reposts.', 'addon-for-activitypub' ); ?></p></td>
 					</tr>
 					<tr valign="top">
 						<th scope="row"><?php esc_html_e( 'Limit Updates', 'addon-for-activitypub' ); ?></th>

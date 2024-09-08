@@ -97,10 +97,12 @@ class Plugin {
 		// "local-only" category to work reliably.
 		add_action( 'transition_post_status', array( $this, 'delay_scheduling' ), 30, 3 );
 
-		// Support incoming likes and reposts.
-		add_action( 'activitypub_inbox_like', array( $this, 'handle_like' ), 10, 2 );
-		add_action( 'activitypub_inbox_announce', array( $this, 'handle_announce' ), 10, 2 );
-		add_action( 'activitypub_inbox_undo', array( $this, 'handle_undo' ), 10, 2 );
+		if ( ! empty( $options['incoming_reactions'] ) ) {
+			// Support incoming likes and reposts.
+			add_action( 'activitypub_inbox_like', array( $this, 'handle_like' ), 10, 2 );
+			add_action( 'activitypub_inbox_announce', array( $this, 'handle_announce' ), 10, 2 );
+			add_action( 'activitypub_inbox_undo', array( $this, 'handle_undo' ), 10, 2 );
+		}
 	}
 
 	/**
